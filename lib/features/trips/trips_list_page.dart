@@ -12,6 +12,7 @@ class TripsListPage extends StatelessWidget {
       backgroundColor: AppColors.surface,
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showTripActionsSheet(context),
+        shape: const CircleBorder(),
         child: const Icon(Icons.add),
       ),
       body: SafeArea(
@@ -24,7 +25,7 @@ class TripsListPage extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Image.asset(
                   'lib/assets/images/logo_triva.png',
-                  height: 44,
+                  height: 32,
                 ),
               ),
               const SizedBox(height: 48),
