@@ -19,13 +19,11 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   void initState() {
     super.initState();
 
-    // Animasi controller
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
 
-    // Scale dari kecil → normal, lalu sedikit bounce
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -33,7 +31,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       ),
     );
 
-    // Fade in halus
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -41,10 +38,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       ),
     );
 
-    // Mulai animasi
     _controller.forward();
 
-    // Pindah ke halaman berikutnya setelah animasi selesai
     Timer(const Duration(milliseconds: 2200), () {
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.authLanding);
