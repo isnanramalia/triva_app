@@ -38,10 +38,17 @@ class TripsListPage extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.sentiment_satisfied_alt_outlined,
-                          size: 40,
-                          color: AppColors.textSecondary.withOpacity(0.4),
+                        // Icon(
+                        //   Icons.sentiment_satisfied_alt_outlined,
+                        //   size: 40,
+                        //   color: AppColors.textSecondary.withOpacity(0.4),
+                        // ),
+                        Align(
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            'lib/assets/images/smile_icon.png',
+                            // height: 44,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -80,8 +87,8 @@ class TripsListPage extends StatelessWidget {
 void _showTripActionsSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.black.withOpacity(0.3), // background overlay
-    barrierColor: Colors.transparent, // biar ga double overlay
+    backgroundColor: Colors.black.withOpacity(0.3),
+    barrierColor: Colors.transparent,
     isScrollControlled: true,
     builder: (ctx) {
       return const _TripActionsSheet();
@@ -115,6 +122,7 @@ class _TripActionsSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // handle kecil di atas
             Container(
               width: 40,
               height: 4,
@@ -126,9 +134,7 @@ class _TripActionsSheet extends StatelessWidget {
             ),
 
             _TripActionCard(
-              icon: Icons.rocket_launch_rounded,
-              iconBg: const Color(0xFFFFF3E0),
-              iconColor: Colors.orange,
+              emoji: '🚀',
               title: 'Start a new group trip',
               subtitle: 'Create a trip and invite your friends.',
               onTap: () {
@@ -138,9 +144,7 @@ class _TripActionsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             _TripActionCard(
-              icon: Icons.link_rounded,
-              iconBg: const Color(0xFFE3F2FD),
-              iconColor: AppColors.trivaBlue,
+              emoji: '🔗',
               title: 'Join an existing group trip',
               subtitle: 'Use an invite link from your friend.',
               onTap: () {
@@ -156,17 +160,13 @@ class _TripActionsSheet extends StatelessWidget {
 }
 
 class _TripActionCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
+  final String emoji;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _TripActionCard({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -187,17 +187,19 @@ class _TripActionCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
+            // Emoji container
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: iconBg,
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 24,
+              child: Center(
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 28),
+                ),
               ),
             ),
             const SizedBox(width: 16),
