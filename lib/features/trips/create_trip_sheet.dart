@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import 'trip_created_sheet.dart';
 
 class CreateTripSheet extends StatefulWidget {
   const CreateTripSheet({super.key});
@@ -13,7 +14,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
   final _emojiController = TextEditingController(text: '🏖️');
   final List<Map<String, dynamic>> _participants = [
     {
-      'name': 'Isna',
+      'name': 'Neena',
       'isCurrentUser': true,
       'isGuest': false,
     }
@@ -118,8 +119,15 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                       TextButton(
                         onPressed: () {
                           if (_tripNameController.text.isNotEmpty) {
-                            // TODO: Save trip
+                            // Close create trip sheet
                             Navigator.pop(context);
+                            // Show success sheet
+                            showTripCreatedSheet(
+                              context,
+                              tripName: _tripNameController.text,
+                              tripEmoji: _emojiController.text,
+                              participants: _participants,
+                            );
                           }
                         },
                         style: TextButton.styleFrom(
@@ -370,10 +378,10 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
   
   // Mock data existing users
   final List<Map<String, String>> _existingUsers = [
-    {'name': 'Neena', 'username': '@neena'},
-    {'name': 'Isa', 'username': '@isa'},
-    {'name': 'Fari', 'username': '@fari'},
-    {'name': 'Aisya', 'username': '@aisya'},
+    {'name': 'Isna', 'username': '@isna'},
+    {'name': 'Budi', 'username': '@budi'},
+    {'name': 'Siti', 'username': '@siti'},
+    {'name': 'Andi', 'username': '@andi'},
   ];
   
   List<Map<String, String>> _filteredUsers = [];

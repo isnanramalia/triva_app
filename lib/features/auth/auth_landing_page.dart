@@ -16,33 +16,37 @@ class AuthLandingPage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const SizedBox(height: 32),
-
-              // LOGO PNG
-              Image.asset(
-                'lib/assets/images/logo_triva.png',
-                width: 100,
-                height: 100,
-              ),
-
-              const SizedBox(height: 24),
-              Text(
-                'Split bill trip bareng tanpa ribet.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center, 
+                  children: [
+                    // LOGO PNG
+                    Image.asset(
+                      'lib/assets/images/logo_triva.png',
+                      width: 120,
+                      height: 120,
+                    ),
+                    
+                    Text(
+                      'Split bill trip bareng tanpa ribet.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Catat pengeluaran, bagi adil, dan selesaikan utang piutang dalam satu app.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Catat pengeluaran, bagi adil, dan selesaikan utang piutang dalam satu app.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
