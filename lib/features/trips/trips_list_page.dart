@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import 'join_trip_sheet.dart';
+import 'create_trip_sheet.dart';
 
 class TripsListPage extends StatelessWidget {
   const TripsListPage({super.key});
@@ -25,7 +27,7 @@ class TripsListPage extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Image.asset(
                   'lib/assets/images/logo_triva.png',
-                  height: 32,
+                  height: 44,
                 ),
               ),
               const SizedBox(height: 48),
@@ -130,8 +132,8 @@ class _TripActionsSheet extends StatelessWidget {
               title: 'Start a new group trip',
               subtitle: 'Create a trip and invite your friends.',
               onTap: () {
-                // TODO: navigate ke Create Trip flow
                 Navigator.pop(context);
+                showCreateTripSheet(context);
               },
             ),
             const SizedBox(height: 12),
@@ -142,8 +144,8 @@ class _TripActionsSheet extends StatelessWidget {
               title: 'Join an existing group trip',
               subtitle: 'Use an invite link from your friend.',
               onTap: () {
-                // TODO: navigate ke Join Trip flow
                 Navigator.pop(context);
+                showJoinTripSheet(context);
               },
             ),
           ],
