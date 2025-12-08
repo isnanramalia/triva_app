@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import 'activity_detail_page.dart';
 import 'summary_page.dart';
 import '../../core/widgets/add_member_sheet.dart';
+import 'add_activity_page.dart';
 
 class TripDetailPage extends StatefulWidget {
   final int tripId;
@@ -25,7 +26,7 @@ class _TripDetailPageState extends State<TripDetailPage>
   bool _isLoadingActivities = true;
 
   // Mock trip summary - DATA KONSISTEN
-  final Map<String, dynamic> _tripData = {
+  Map<String, dynamic> _tripData = {
     "id": 1,
     "name": "Venice",
     "members_count": 5,
@@ -47,16 +48,26 @@ class _TripDetailPageState extends State<TripDetailPage>
   // Mock activities
   List<Map<String, dynamic>> _activities = [];
 
-  // Mock My Balance data
-  final List<Map<String, dynamic>> _mockMyBalance = [
+  // Mock My Balance data - SESUAI SCREENSHOT
+  List<Map<String, dynamic>> _myBalance = [
     {
       "description": "You owed Ahmad",
-      "amount": 2600000,
+      "amount": 13000000,
       "status": "unpaid",
     },
     {
-      "description": "Budi owes You",
-      "amount": 860000,
+      "description": "You owed Ahmad",
+      "amount": 13000000,
+      "status": "unpaid",
+    },
+    {
+      "description": "You owed Ahmad",
+      "amount": 13000000,
+      "status": "unpaid",
+    },
+    {
+      "description": "Amanda owes You",
+      "amount": 13000000,
       "status": "not_paid_yet",
     },
   ];
@@ -81,7 +92,7 @@ class _TripDetailPageState extends State<TripDetailPage>
         {
           "id": 10,
           "title": "Villa",
-          "emoji": "🏛️",
+          "emoji": "🛏️",
           "date": "2025-12-01 13:00:00",
           "total_amount": 13000000,
           "paid_by_summary": "Ahmad, Budi",
@@ -322,7 +333,36 @@ class _TripDetailPageState extends State<TripDetailPage>
             children: [
               TextButton.icon(
                 onPressed: () {
-                  // TODO: Add Activity
+                  showAddActivitySheet(
+                    context,
+                    tripId: widget.tripId,
+                    members: _members,
+                    onActivityAdded: (activityData) {
+                      setState(() {
+                        _activities.add({
+                          'id': _activities.length + 100,
+                          'title': activityData['title'],
+                          'emoji': activityData['emoji'],
+                          'date': activityData['date'],
+                          'total_amount': activityData['amount'],
+                          'paid_by_summary': activityData['paid_by'],
+                        });
+                        _tripData['activities_count'] = _activities.length;
+                        _tripData['total_expenses'] = _activities.fold<double>(
+                          0.0, 
+                          (sum, activity) => sum + (activity['total_amount'] as num).toDouble()
+                        );
+                      });
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${activityData['title']} has been added'),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  );
                 },
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text("Add Activity"),
@@ -347,8 +387,34 @@ class _TripDetailPageState extends State<TripDetailPage>
     }
 
     if (_activities.isEmpty) {
-      return const Center(
-        child: Text("No activities yet"),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 60,
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No activities yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap "Add Activity" to get started',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -376,8 +442,43 @@ class _TripDetailPageState extends State<TripDetailPage>
     );
   }
 
-  // Expenses Tab
+  // Expenses Tab - FIXED
   Widget _buildExpensesTab() {
+    // Check if there's any data
+    final hasExpenses = _myBalance.isNotEmpty;
+
+    if (!hasExpenses) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 60,
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No expenses yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Add activities to track expenses',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
@@ -488,7 +589,7 @@ class _TripDetailPageState extends State<TripDetailPage>
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           // My Balance Section
           const Text(
@@ -502,7 +603,7 @@ class _TripDetailPageState extends State<TripDetailPage>
           const SizedBox(height: 8),
 
           // My Balance List
-          ..._mockMyBalance.map((balance) {
+          ..._myBalance.map((balance) {
             final isUnpaid = balance['status'] == 'unpaid';
             final isNotPaidYet = balance['status'] == 'not_paid_yet';
 
