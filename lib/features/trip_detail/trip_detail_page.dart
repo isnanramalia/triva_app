@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import 'activity_detail_page.dart';
 import 'summary_page.dart';
+import '../../core/widgets/add_member_sheet.dart';
 
 class TripDetailPage extends StatefulWidget {
   final int tripId;
@@ -33,6 +34,15 @@ class _TripDetailPageState extends State<TripDetailPage>
     "total_expenses": 17300000,
     "my_expenses": 3460000,
   };
+
+  // Mock members - untuk exclude di add member sheet
+  List<Map<String, dynamic>> _members = [
+    {'name': 'Neena', 'username': '@neena', 'isAdmin': true},
+    {'name': 'Ahmad', 'username': '@ahmad', 'isAdmin': false},
+    {'name': 'Budi', 'username': '@budi', 'isAdmin': false},
+    {'name': 'Amanda', 'username': '@amanda', 'isAdmin': false},
+    {'name': 'Risa', 'username': '@risa', 'isAdmin': false},
+  ];
 
   // Mock activities
   List<Map<String, dynamic>> _activities = [];
@@ -161,7 +171,25 @@ class _TripDetailPageState extends State<TripDetailPage>
                   // Add Member Icon
                   IconButton(
                     onPressed: () {
-                      // TODO: Open add member sheet
+                      showAddMemberSheet(
+                        context,
+                        onAddMember: (member) {
+                          setState(() {
+                            _members.add(member);
+                            _tripData['members_count'] = _members.length;
+                          });
+                          
+                          // Show success snackbar
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${member['name']} has been added to the trip'),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        excludeNames: _members.map((m) => m['name'] as String).toList(),
+                      );
                     },
                     icon: const Icon(
                       Icons.person_add,
