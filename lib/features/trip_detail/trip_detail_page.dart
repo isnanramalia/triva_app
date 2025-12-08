@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import 'activity_detail_page.dart';
@@ -22,12 +21,7 @@ class TripDetailPage extends StatefulWidget {
 class _TripDetailPageState extends State<TripDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late final PagingController<int, Map<String, dynamic>> _pagingController =
-      PagingController(
-    getNextPageKey: (state) =>
-        state.keys?.isEmpty ?? true ? 1 : null,
-    fetchPage: _fetchActivities,
-  );
+  bool _isLoadingActivities = true;
 
   // Mock trip summary - DATA KONSISTEN
   final Map<String, dynamic> _tripData = {
@@ -40,33 +34,8 @@ class _TripDetailPageState extends State<TripDetailPage>
     "my_expenses": 3460000,
   };
 
-  // Mock activities - FIX EMOJI ENCODING
-  final List<Map<String, dynamic>> _mockActivities = [
-    {
-      "id": 10,
-      "title": "Villa",
-      "emoji": "🏛️",
-      "date": "2025-12-01 13:00:00",
-      "total_amount": 13000000,
-      "paid_by_summary": "Ahmad, Budi",
-    },
-    {
-      "id": 11,
-      "title": "Gondola",
-      "emoji": "🛶",
-      "date": "2025-12-02 10:00:00",
-      "total_amount": 1500000,
-      "paid_by_summary": "Neena",
-    },
-    {
-      "id": 12,
-      "title": "Fine Dining",
-      "emoji": "🥂",
-      "date": "2025-12-02 19:00:00",
-      "total_amount": 2800000,
-      "paid_by_summary": "Risa",
-    },
-  ];
+  // Mock activities
+  List<Map<String, dynamic>> _activities = [];
 
   // Mock My Balance data
   final List<Map<String, dynamic>> _mockMyBalance = [
@@ -86,25 +55,51 @@ class _TripDetailPageState extends State<TripDetailPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadActivities();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchActivities(int pageKey) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (pageKey > 1) {
-        return [];
-      } else {
-        return _mockActivities;
-      }
-    } catch (error) {
-      rethrow;
-    }
+  Future<void> _loadActivities() async {
+    setState(() {
+      _isLoadingActivities = true;
+    });
+
+    // Simulate API call
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    setState(() {
+      _activities = [
+        {
+          "id": 10,
+          "title": "Villa",
+          "emoji": "🏛️",
+          "date": "2025-12-01 13:00:00",
+          "total_amount": 13000000,
+          "paid_by_summary": "Ahmad, Budi",
+        },
+        {
+          "id": 11,
+          "title": "Gondola",
+          "emoji": "🛶",
+          "date": "2025-12-02 10:00:00",
+          "total_amount": 1500000,
+          "paid_by_summary": "Neena",
+        },
+        {
+          "id": 12,
+          "title": "Fine Dining",
+          "emoji": "🥂",
+          "date": "2025-12-02 19:00:00",
+          "total_amount": 2800000,
+          "paid_by_summary": "Risa",
+        },
+      ];
+      _isLoadingActivities = false;
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _pagingController.dispose();
     super.dispose();
   }
 
@@ -270,32 +265,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                 controller: _tabController,
                 children: [
                   // Tab 1: Activities List
-                  PagingListener(
-                    controller: _pagingController,
-                    builder: (context, state, fetchNextPage) => PagedListView<int, Map<String, dynamic>>(
-                      state: state,
-                      fetchNextPage: fetchNextPage,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      builderDelegate: PagedChildBuilderDelegate<Map<String, dynamic>>(
-                        itemBuilder: (context, item, index) => _ActivityCard(
-                          activity: item,
-                          formatCurrency: _formatCurrency,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ActivityDetailPage(
-                                  activityId: item['id'],
-                                  activityData: item,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        noItemsFoundIndicatorBuilder: (ctx) => const Center(child: Text("No activities yet")),
-                      ),
-                    ),
-                  ),
+                  _buildActivitiesTab(),
 
                   // Tab 2: Expenses
                   _buildExpensesTab(),
@@ -306,13 +276,23 @@ class _TripDetailPageState extends State<TripDetailPage>
         ),
       ),
       
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        color: Colors.transparent,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-             TextButton.icon(
+      // Bottom Navigation Bar
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.border.withValues(alpha: 0.2),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
                 onPressed: () {
                   // TODO: Add Activity
                 },
@@ -322,16 +302,56 @@ class _TripDetailPageState extends State<TripDetailPage>
                   foregroundColor: AppColors.trivaBlue,
                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
-             ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // Activities Tab
+  Widget _buildActivitiesTab() {
+    if (_isLoadingActivities) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_activities.isEmpty) {
+      return const Center(
+        child: Text("No activities yet"),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      itemCount: _activities.length,
+      itemBuilder: (context, index) {
+        final activity = _activities[index];
+        return _ActivityCard(
+          activity: activity,
+          formatCurrency: _formatCurrency,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ActivityDetailPage(
+                  activityId: activity['id'],
+                  activityData: activity,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Expenses Tab
   Widget _buildExpensesTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -533,7 +553,7 @@ class _TripDetailPageState extends State<TripDetailPage>
             );
           }).toList(),
 
-          const SizedBox(height: 80),
+          const SizedBox(height: 32),
         ],
       ),
     );
