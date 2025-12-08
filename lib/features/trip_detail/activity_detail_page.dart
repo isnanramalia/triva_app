@@ -109,7 +109,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                         onPressed: null, // TODO: Implement navigation
                         icon: Icon(
                           Icons.chevron_left,
-                          color: AppColors.textSecondary.withOpacity(0.3),
+                          color: AppColors.textSecondary.withValues(alpha: 0.3),
                           size: 28,
                         ),
                         padding: EdgeInsets.zero,
@@ -121,7 +121,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                         onPressed: null, // TODO: Implement navigation
                         icon: Icon(
                           Icons.chevron_right,
-                          color: AppColors.textSecondary.withOpacity(0.3),
+                          color: AppColors.textSecondary.withValues(alpha: 0.3),
                           size: 28,
                         ),
                         padding: EdgeInsets.zero,
@@ -189,7 +189,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontStyle: FontStyle.italic,
-                              color: AppColors.textSecondary.withOpacity(0.7),
+                              color: AppColors.textSecondary.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -288,7 +288,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                                   Divider(
                                     height: 1,
                                     thickness: 0.5,
-                                    color: AppColors.border.withOpacity(0.3),
+                                    color: AppColors.border.withValues(alpha: 0.3),
                                     indent: 16,
                                     endIndent: 16,
                                   ),
@@ -354,7 +354,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                                   Divider(
                                     height: 1,
                                     thickness: 0.5,
-                                    color: AppColors.border.withOpacity(0.3),
+                                    color: AppColors.border.withValues(alpha: 0.3),
                                     indent: 16,
                                     endIndent: 16,
                                   ),

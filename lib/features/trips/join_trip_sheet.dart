@@ -41,7 +41,7 @@ class TripsListPage extends StatelessWidget {
                         Icon(
                           Icons.sentiment_satisfied_alt_outlined,
                           size: 40,
-                          color: AppColors.textSecondary.withOpacity(0.4),
+                          color: AppColors.textSecondary.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -57,7 +57,7 @@ class TripsListPage extends StatelessWidget {
                           'Tap  +  to create your first trip.',
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary.withOpacity(0.8),
+                            color: AppColors.textSecondary.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -80,7 +80,7 @@ class TripsListPage extends StatelessWidget {
 void _showTripActionsSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.black.withOpacity(0.3),
+    backgroundColor: Colors.black.withValues(alpha: 0.3),
     barrierColor: Colors.transparent,
     isScrollControlled: true,
     builder: (ctx) {
@@ -102,7 +102,7 @@ class _TripActionsSheet extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(0, -4),
@@ -221,7 +221,7 @@ class _TripActionCard extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
               size: 24,
             ),
           ],
@@ -365,7 +365,7 @@ class _JoinTripSheetState extends State<JoinTripSheet> {
                         decoration: InputDecoration(
                           hintText: 'Paste Link Here',
                           hintStyle: TextStyle(
-                            color: AppColors.textSecondary.withOpacity(0.3),
+                            color: AppColors.textSecondary.withValues(alpha: 0.3),
                             fontSize: 17,
                           ),
                           border: InputBorder.none,
@@ -424,7 +424,7 @@ class _JoinTripSheetState extends State<JoinTripSheet> {
 void showJoinTripSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.black.withOpacity(0.3),
+    backgroundColor: Colors.black.withValues(alpha: 0.3),
     barrierColor: Colors.transparent,
     isScrollControlled: true,
     builder: (ctx) => const JoinTripSheet(),

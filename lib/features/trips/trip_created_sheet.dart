@@ -236,7 +236,7 @@ class _TripCreatedSheetState extends State<TripCreatedSheet> {
                                   Divider(
                                     height: 0.5,
                                     thickness: 0.5,
-                                    color: AppColors.border.withOpacity(0.3),
+                                    color: AppColors.border.withValues(alpha: 0.3),
                                     indent: 16,
                                   ),
                               ],
@@ -248,7 +248,7 @@ class _TripCreatedSheetState extends State<TripCreatedSheet> {
                             Divider(
                               height: 0.5,
                               thickness: 0.5,
-                              color: AppColors.border.withOpacity(0.3),
+                              color: AppColors.border.withValues(alpha: 0.3),
                               indent: 16,
                             ),
                             InkWell(
@@ -295,7 +295,7 @@ class _TripCreatedSheetState extends State<TripCreatedSheet> {
                       'Participant can view, edit, and delete expenses.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary.withOpacity(0.7),
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
                       ),
                     ),
                     
@@ -409,7 +409,7 @@ void showTripCreatedSheet(
   
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.black.withOpacity(0.3),
+    backgroundColor: Colors.black.withValues(alpha: 0.3),
     barrierColor: Colors.transparent,
     isScrollControlled: true,
     isDismissible: false,

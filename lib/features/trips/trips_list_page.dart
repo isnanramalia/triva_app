@@ -205,7 +205,7 @@ class _TripsListPageState extends State<TripsListPage> {
             'Tap  +  to create your first trip.',
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary.withOpacity(0.8),
+              color: AppColors.textSecondary.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 100), // Offset ke atas sedikit
@@ -258,7 +258,7 @@ class _TripCard extends StatelessWidget {
           // Opsional: Shadow tipis
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
@@ -271,7 +271,7 @@ class _TripCard extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppColors.trivaBlue.withOpacity(0.1),
+                color: AppColors.trivaBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: trip['cover_url'] != null
@@ -301,7 +301,7 @@ class _TripCard extends StatelessWidget {
                     '${trip['members_count']} Members • ${formatCurrency(trip['total_spent'])}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary.withOpacity(0.8),
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -372,7 +372,7 @@ class _TripActionCard extends StatelessWidget {
             Container(width: 48, height: 48, decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)), child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28)))),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)), Text(subtitle, style: TextStyle(color: AppColors.textSecondary, fontSize: 13))])),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary.withOpacity(0.5)),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary.withValues(alpha: 0.5)),
           ],
         ),
       ),

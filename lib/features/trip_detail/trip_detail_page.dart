@@ -200,7 +200,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            color: AppColors.trivaBlue.withOpacity(0.1),
+                            color: AppColors.trivaBlue.withValues(alpha: 0.1),
                             child: Icon(Icons.landscape, color: AppColors.trivaBlue, size: 40),
                           );
                         },
@@ -223,7 +223,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                     '${_tripData['members_count']} Members • ${_tripData['activities_count']} Activities',
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary.withOpacity(0.8),
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -247,7 +247,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))
                   ],
                 ),
                 labelColor: Colors.black,
@@ -352,7 +352,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                         'My Expenses',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary.withOpacity(0.7),
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -383,7 +383,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                         'Total Expenses',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary.withOpacity(0.7),
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -433,7 +433,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: AppColors.textSecondary.withOpacity(0.5),
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
                   ),
                 ],
               ),
@@ -475,7 +475,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                           balance['description'],
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary.withOpacity(0.7),
+                            color: AppColors.textSecondary.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -516,7 +516,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
+                        color: Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
@@ -594,7 +594,7 @@ class _ActivityCard extends StatelessWidget {
                     'Paid by ${activity['paid_by_summary']}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary.withOpacity(0.8),
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                     ),
                   ),
                 ],

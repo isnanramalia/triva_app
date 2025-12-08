@@ -212,7 +212,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                               decoration: InputDecoration(
                                 hintText: 'E.g. Beach Trip',
                                 hintStyle: TextStyle(
-                                  color: AppColors.textSecondary.withOpacity(0.3),
+                                  color: AppColors.textSecondary.withValues(alpha: 0.3),
                                   fontSize: 17,
                                 ),
                                 border: InputBorder.none,
@@ -257,7 +257,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                                   Divider(
                                     height: 0.5,
                                     thickness: 0.5,
-                                    color: AppColors.border.withOpacity(0.3),
+                                    color: AppColors.border.withValues(alpha: 0.3),
                                     indent: 16,
                                   ),
                                 Padding(
@@ -285,7 +285,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                                                 isCurrentUser ? 'Admin' : 'Guest',
                                                 style: TextStyle(
                                                   fontSize: 13,
-                                                  color: AppColors.textSecondary.withOpacity(0.6),
+                                                  color: AppColors.textSecondary.withValues(alpha: 0.6),
                                                 ),
                                               ),
                                             ],
@@ -299,7 +299,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                                             width: 20,
                                             height: 20,
                                             decoration: BoxDecoration(
-                                              color: AppColors.border.withOpacity(0.5),
+                                              color: AppColors.border.withValues(alpha: 0.5),
                                               shape: BoxShape.circle,
                                             ),
                                             child: const Icon(
@@ -320,7 +320,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                           Divider(
                             height: 0.5,
                             thickness: 0.5,
-                            color: AppColors.border.withOpacity(0.3),
+                            color: AppColors.border.withValues(alpha: 0.3),
                             indent: 16,
                           ),
                           
@@ -529,11 +529,11 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                     decoration: InputDecoration(
                       hintText: 'Search friends...',
                       hintStyle: TextStyle(
-                        color: AppColors.textSecondary.withOpacity(0.3),
+                        color: AppColors.textSecondary.withValues(alpha: 0.3),
                       ),
                       prefixIcon: Icon(
                         Icons.search,
-                        color: AppColors.textSecondary.withOpacity(0.5),
+                        color: AppColors.textSecondary.withValues(alpha: 0.5),
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
@@ -567,7 +567,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                           children: [
                             CircleAvatar(
                               radius: 20,
-                              backgroundColor: AppColors.trivaBlue.withOpacity(0.1),
+                              backgroundColor: AppColors.trivaBlue.withValues(alpha: 0.1),
                               child: Text(
                                 user['name']![0].toUpperCase(),
                                 style: TextStyle(
@@ -593,7 +593,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                                     user['username']!,
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: AppColors.textSecondary.withOpacity(0.6),
+                                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ],
@@ -668,7 +668,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                           decoration: InputDecoration(
                             hintText: 'Enter guest name',
                             hintStyle: TextStyle(
-                              color: AppColors.textSecondary.withOpacity(0.3),
+                              color: AppColors.textSecondary.withValues(alpha: 0.3),
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -700,7 +700,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                           decoration: InputDecoration(
                             hintText: 'Enter phone number',
                             hintStyle: TextStyle(
-                              color: AppColors.textSecondary.withOpacity(0.3),
+                              color: AppColors.textSecondary.withValues(alpha: 0.3),
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -726,7 +726,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
 void showCreateTripSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.black.withOpacity(0.3),
+    backgroundColor: Colors.black.withValues(alpha: 0.3),
     barrierColor: Colors.transparent,
     isScrollControlled: true,
     builder: (ctx) => const CreateTripSheet(),

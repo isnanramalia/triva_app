@@ -117,10 +117,10 @@ class _SummaryPageState extends State<SummaryPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.trivaBlue.withOpacity(0.05),
+                        color: AppColors.trivaBlue.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.trivaBlue.withOpacity(0.1),
+                          color: AppColors.trivaBlue.withValues(alpha: 0.1),
                           width: 1,
                         ),
                       ),
@@ -189,8 +189,8 @@ class _SummaryPageState extends State<SummaryPage> {
                                             height: 36,
                                             decoration: BoxDecoration(
                                               color: isPositive 
-                                                ? Colors.green.withOpacity(0.1)
-                                                : Colors.red.withOpacity(0.1),
+                                                ? Colors.green.withValues(alpha: 0.1)
+                                                : Colors.red.withValues(alpha: 0.1),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Center(
@@ -231,7 +231,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                             isPositive ? 'Gets back' : 'Owes',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: AppColors.textSecondary.withOpacity(0.6),
+                                              color: AppColors.textSecondary.withValues(alpha: 0.6),
                                             ),
                                           ),
                                         ],
@@ -243,7 +243,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                   Divider(
                                     height: 1,
                                     thickness: 0.5,
-                                    color: AppColors.border.withOpacity(0.3),
+                                    color: AppColors.border.withValues(alpha: 0.3),
                                     indent: 16,
                                     endIndent: 16,
                                   ),
@@ -270,7 +270,7 @@ class _SummaryPageState extends State<SummaryPage> {
                       'Suggested payments to settle all balances',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary.withOpacity(0.7),
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -289,7 +289,7 @@ class _SummaryPageState extends State<SummaryPage> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: isYouInvolved ? Border.all(
-                              color: AppColors.trivaBlue.withOpacity(0.3),
+                              color: AppColors.trivaBlue.withValues(alpha: 0.3),
                               width: 1.5,
                             ) : null,
                           ),
@@ -309,7 +309,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                               width: 28,
                                               height: 28,
                                               decoration: BoxDecoration(
-                                                color: Colors.red.withOpacity(0.1),
+                                                color: Colors.red.withValues(alpha: 0.1),
                                                 shape: BoxShape.circle,
                                               ),
                                               child: Center(
@@ -336,7 +336,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                             Icon(
                                               Icons.arrow_forward,
                                               size: 16,
-                                              color: AppColors.textSecondary.withOpacity(0.5),
+                                              color: AppColors.textSecondary.withValues(alpha: 0.5),
                                             ),
                                             const SizedBox(width: 8),
                                             // To avatar
@@ -344,7 +344,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                               width: 28,
                                               height: 28,
                                               decoration: BoxDecoration(
-                                                color: Colors.green.withOpacity(0.1),
+                                                color: Colors.green.withValues(alpha: 0.1),
                                                 shape: BoxShape.circle,
                                               ),
                                               child: Center(
