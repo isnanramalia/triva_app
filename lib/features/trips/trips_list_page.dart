@@ -34,46 +34,7 @@ class _TripsListPageState extends State<TripsListPage> {
       "members_count": 5,
       "activities_count": 3,
       "total_spent": 15800000,
-      "cover_url": null,
-      "my_balance": 4400000
-    },
-    {
-      "id": 2,
-      "name": "Venice",
-      "description": "Liburan akhir tahun",
-      "currency_code": "IDR",
-      "start_date": "2025-12-01",
-      "end_date": "2025-12-05",
-      "members_count": 5,
-      "activities_count": 3,
-      "total_spent": 15800000,
-      "cover_url": null,
-      "my_balance": 4400000
-    },
-    {
-      "id": 3,
-      "name": "Venice",
-      "description": "Liburan akhir tahun",
-      "currency_code": "IDR",
-      "start_date": "2025-12-01",
-      "end_date": "2025-12-05",
-      "members_count": 5,
-      "activities_count": 3,
-      "total_spent": 15800000,
-      "cover_url": null,
-      "my_balance": 4400000
-    },
-    {
-      "id": 4,
-      "name": "Venice",
-      "description": "Liburan akhir tahun",
-      "currency_code": "IDR",
-      "start_date": "2025-12-01",
-      "end_date": "2025-12-05",
-      "members_count": 5,
-      "activities_count": 3,
-      "total_spent": 15800000,
-      "cover_url": null,
+      "cover_url": "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=400",
       "my_balance": 4400000
     },
   ];
@@ -245,6 +206,7 @@ class _TripCard extends StatelessWidget {
             builder: (context) => TripDetailPage(
               tripId: trip['id'],
               tripName: trip['name'],
+              coverUrl: trip['cover_url'], // Tambahkan ini
             ),
           ),
         );

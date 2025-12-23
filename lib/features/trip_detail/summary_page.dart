@@ -64,45 +64,37 @@ class _SummaryPageState extends State<SummaryPage> {
             // --- Header ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  // Back button
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 20,
-                          color: AppColors.trivaBlue,
+              child: SizedBox(
+                height: 40,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Kiri
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.trivaBlue),
+                            const SizedBox(width: 4),
+                            Text('Back', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue, fontWeight: FontWeight.w400)),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Back',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppColors.trivaBlue,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Summary',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
                       ),
                     ),
-                  ),
-                  // Placeholder for alignment
-                  const SizedBox(width: 60),
-                ],
+                    
+                    // Tengah
+                    const Text(
+                      'Summary',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    ),
+
+                    // Kanan (Kosong tapi bisa diisi icon share dll nanti)
+                  ],
+                ),
               ),
             ),
 

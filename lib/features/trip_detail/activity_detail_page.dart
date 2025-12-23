@@ -64,91 +64,63 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
             // --- Header ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  // Back button with Details text
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 20,
-                          color: AppColors.trivaBlue,
+              child: SizedBox(
+                height: 40,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Kiri: Back Button
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.trivaBlue),
+                            const SizedBox(width: 4),
+                            Text('Details', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue, fontWeight: FontWeight.w400)),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Details',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppColors.trivaBlue,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
+
+                    // Tengah: Judul (Aman di tengah karena pakai Stack)
+                    const Text(
                       'Activities',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    ),
+
+                    // Kanan: Navigasi < > dan Edit
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Tombol Panah (Previous/Next)
+                          // Gap didekatkan dengan width kecil di antara icon
+                          Icon(Icons.chevron_left, color: AppColors.textSecondary.withOpacity(0.3), size: 28),
+                          const SizedBox(width: 0), // Gap sangat kecil/nol karena padding icon bawaan sudah ada
+                          Icon(Icons.chevron_right, color: AppColors.textSecondary.withOpacity(0.3), size: 28),
+                          
+                          const SizedBox(width: 8), // Gap ke tombol Edit
+                          
+                          // Tombol Edit
+                          TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(40, 30),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Agar area klik pas
+                            ),
+                            child: Text('Edit', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue, fontWeight: FontWeight.w400)),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  // Navigation arrows and Edit
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Previous button (disabled for now)
-                      IconButton(
-                        onPressed: null, // TODO: Implement navigation
-                        icon: Icon(
-                          Icons.chevron_left,
-                          color: AppColors.textSecondary.withValues(alpha: 0.3),
-                          size: 28,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 8),
-                      // Next button (disabled for now)
-                      IconButton(
-                        onPressed: null, // TODO: Implement navigation
-                        icon: Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textSecondary.withValues(alpha: 0.3),
-                          size: 28,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
-                      // Edit button
-                      TextButton(
-                        onPressed: () {
-                          // TODO: Edit activity
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(40, 30),
-                        ),
-                        child: Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppColors.trivaBlue,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
