@@ -330,7 +330,7 @@ class _TripDetailPageState extends State<TripDetailPage>
             children: [
               TextButton.icon(
                 onPressed: () {
-                  showAddActivitySheet(
+                  navigateToAddActivityPage(
                     context,
                     tripId: widget.tripId,
                     members: _members,
@@ -343,7 +343,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                           'emoji': activityData['emoji'],
                           'date': activityData['date'],
                           'total_amount': activityData['amount'],
-                          'paid_by_summary': 'You', // Simplified for now
+                          'paid_by_summary': activityData['paid_by'].map((p) => p['name']).join(', '),
                         });
 
                         // 2. Add dummy expense item so user sees change in Expenses tab
@@ -444,20 +444,9 @@ class _TripDetailPageState extends State<TripDetailPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 60,
-              color: AppColors.textSecondary.withOpacity(0.4),
-            ),
+            Icon(Icons.account_balance_wallet_outlined, size: 60, color: AppColors.textSecondary.withOpacity(0.4)),
             const SizedBox(height: 16),
-            const Text(
-              'No expenses yet',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            const Text('No expenses yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ],
         ),
       );
@@ -468,57 +457,28 @@ class _TripDetailPageState extends State<TripDetailPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Cards (My Expenses & Total)
+          // Header Cards
           Row(
             children: [
-              Expanded(
-                child: _ExpenseSummaryCard(
-                  title: 'My Expenses',
-                  amount: _tripData['my_expenses'],
-                  formatCurrency: _formatCurrency,
-                ),
-              ),
+              Expanded(child: _ExpenseSummaryCard(title: 'My Expenses', amount: _tripData['my_expenses'], formatCurrency: _formatCurrency)),
               const SizedBox(width: 12),
-              Expanded(
-                child: _ExpenseSummaryCard(
-                  title: 'Total Expenses',
-                  amount: _tripData['total_expenses'],
-                  formatCurrency: _formatCurrency,
-                ),
-              ),
+              Expanded(child: _ExpenseSummaryCard(title: 'Total Expenses', amount: _tripData['total_expenses'], formatCurrency: _formatCurrency)),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // Summary Page Link
+          // Summary Link
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SummaryPage()),
-              );
-            },
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SummaryPage())),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Summary',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: AppColors.textSecondary.withOpacity(0.5),
-                  ),
+                  const Text('Summary', style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                  Icon(Icons.chevron_right, color: AppColors.textSecondary.withOpacity(0.5)),
                 ],
               ),
             ),
@@ -526,103 +486,73 @@ class _TripDetailPageState extends State<TripDetailPage>
 
           const SizedBox(height: 24),
 
-          const Text(
-            'My Balance',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          const Text('My Balance', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
 
-          // List Items
-          // Menggunakan spread operator (...) untuk menampilkan list widgets
-          ..._myBalance.map(
-            (balance) {
-              final isUnpaid = balance['status'] == 'unpaid';
-              final isNotPaidYet = balance['status'] == 'not_paid_yet';
+          // LIST ITEMS
+          ..._myBalance.map((balance) {
+            final isUnpaid = balance['status'] == 'unpaid';
+            final isNotPaidYet = balance['status'] == 'not_paid_yet'; // Status orang lain
+            final isPaid = balance['status'] == 'paid';
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            balance['description'] ?? 'Expense',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary.withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatCurrency(balance['amount'] ?? 0),
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(balance['description'] ?? 'Expense', style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withOpacity(0.7))),
+                        const SizedBox(height: 4),
+                        Text(_formatCurrency(balance['amount'] ?? 0), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      ],
                     ),
-                    if (isUnpaid)
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.trivaBlue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                          minimumSize: const Size(0, 36), // Compact button
-                        ),
-                        child: const Text(
-                          'Set as Paid',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    else if (isNotPaidYet)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'Not paid yet',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange,
-                          ),
-                        ),
+                  ),
+                  
+                  // Kanan: Tombol/Status (Konsisten dengan Summary Page)
+                  if (isPaid)
+                    OutlinedButton(
+                      onPressed: () {}, // Action to unpay if needed
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green,
+                        side: const BorderSide(color: Colors.green),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                  ],
-                ),
-              );
-            },
-          ), // Tidak perlu .toList() jika menggunakan spread operator di dart versi baru, tapi aman dipakai.
+                      child: const Text('Paid', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    )
+                  else if (isUnpaid)
+                    ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.trivaBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Set as Paid', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    )
+                  else if (isNotPaidYet)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Not paid yet', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange)),
+                    ),
+                ],
+              ),
+            );
+          }),
 
           const SizedBox(height: 32),
         ],

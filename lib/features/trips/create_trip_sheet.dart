@@ -12,7 +12,9 @@ class CreateTripSheet extends StatefulWidget {
 
 class _CreateTripSheetState extends State<CreateTripSheet> {
   final _tripNameController = TextEditingController();
-  final _emojiController = TextEditingController(text: '🏖️');
+  // REVISI: Ganti controller dengan String state untuk emoji
+  String _selectedEmoji = '🏖️';
+  
   final List<Map<String, dynamic>> _participants = [
     {
       'name': 'Neena',
@@ -21,15 +23,17 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
     }
   ];
 
+  // Style Constants
+  final double _fieldHeight = 44.0;
+  final double _borderRadius = 10.0;
+
   @override
   void dispose() {
     _tripNameController.dispose();
-    _emojiController.dispose();
     super.dispose();
   }
 
   void _addParticipant(Map<String, dynamic> participant) {
-    // Check for duplicate
     final isDuplicate = _participants.any((p) => 
       p['name'].toString().toLowerCase() == participant['name'].toString().toLowerCase()
     );
@@ -57,6 +61,85 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
     );
   }
 
+  // REVISI: Emoji Picker dengan daftar lengkap
+  void _showEmojiPicker() {
+    final List<String> emojis = [
+      '🍽️', '🍕', '🍔', '🌭', '🥪', '🌮', '🌯', '🥙', '🍜', '🍲', '🍱', '🍛', '🍙', '🍚', '🍘', '🥟', 
+      '🍗', '🥩', '🥓', '🍖', '🥗', '🥦', '🥬', '🥒', '🌽', '🥕', '🥔', '🥖', '🥐', '🍞', '🥯', 
+      '🥨', '🥞', '🧇', '🧀', '🥚', '🍳', '🧈', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', 
+      '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕', '🍵', '🧃', '🥤', '🍺', '🍻', '🥂', '🍷', '🥃', 
+      '🍸', '🍹', '🍾', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', 
+      '🏍️', '🛵', '🚲', '🛴', '🚨', '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚝', 
+      '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚊', '🚉', '🚁', '🛩️', '✈️', '🛫', '🛬', '🚀', '🛸', '🛰️', 
+      '🛶', '⛵', '🛥️', '🚤', '⛴️', '🛳️', '🚢', '⚓', '⛽', '🚧', '🚦', '🚥', '🚏', '🗺️', '🗿', '🗽', 
+      '🗼', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', 
+      '⛺', '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', 
+      '🏩', '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️', '⚽', '🏀', '🏈', '⚾', '🥎', '🏐', '🏉', 
+      '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', 
+      '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', 
+      '🤾', '🏌️', '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚵', '🚴', '🏆', '🥇', '🥈', '🥉', '🏅', 
+      '🎖️', '🎗️', '🎫', '🎟️', '🎪', '🤹', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', 
+      '🎸', '🪕', '🎻', '🎲', '♟️', '🎯', '🎳', '🎮', '🎰', '🧩', '❤️', '🧡', '💛', '💚', '💙', '💜', 
+      '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', 
+      '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', 
+      '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', 
+      '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', 
+      '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', 
+      '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', 
+      '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', 
+      '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', 
+      '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', 
+      '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '⏏️', '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️', 
+      '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', 
+      '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', 
+      '✖️', '♾️', '💲', '💱', '™️', '©️', '®️', '👁️‍🗨️', '🔚', '🔙', '🔛', '🔝', '🔜', '〰️', '➰', 
+      '➿', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸', 
+      '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', 
+      '🟪', '🟫', '⬛', '⬜', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '💬', '💭', '🗯️', '♠️', 
+      '♣️', '♥️', '♦️', '🃏', '🎴', '🀄',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.5,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7, 
+                  mainAxisSpacing: 12, 
+                  crossAxisSpacing: 12
+                ),
+                itemCount: emojis.length,
+                itemBuilder: (context, index) => GestureDetector(
+                  onTap: () { 
+                    setState(() => _selectedEmoji = emojis[index]); 
+                    Navigator.pop(context); 
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)), 
+                    child: Center(child: Text(emojis[index], style: const TextStyle(fontSize: 28)))
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -71,12 +154,11 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
         top: false,
         child: Column(
           children: [
-            // Header
+            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Column(
                 children: [
-                  // Handle
                   Container(
                     width: 40,
                     height: 4,
@@ -86,7 +168,6 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  // Header buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -97,33 +178,20 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                           minimumSize: const Size(60, 40),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: AppColors.trivaBlue,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
+                        child: Text('Cancel', style: TextStyle(color: AppColors.trivaBlue, fontSize: 17, fontWeight: FontWeight.w400)),
                       ),
                       const Text(
                         'Add new trip',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                       ),
                       TextButton(
                         onPressed: () {
                           if (_tripNameController.text.isNotEmpty) {
-                            // Close create trip sheet
                             Navigator.pop(context);
-                            // Show success sheet
                             showTripCreatedSheet(
                               context,
                               tripName: _tripNameController.text,
-                              tripEmoji: _emojiController.text,
+                              tripEmoji: _selectedEmoji, // Gunakan emoji yang dipilih
                               participants: _participants,
                             );
                           }
@@ -133,14 +201,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                           minimumSize: const Size(60, 40),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text(
-                          'Done',
-                          style: TextStyle(
-                            color: AppColors.trivaBlue,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: Text('Done', style: TextStyle(color: AppColors.trivaBlue, fontSize: 17, fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
@@ -148,76 +209,58 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
               ),
             ),
 
-            // Content
+            // --- CONTENT ---
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name Your Trip
-                    const Text(
-                      'Name Your Trip',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
+                    // Label
+                    const Text('Name Your Trip', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                     const SizedBox(height: 8),
                     
-                    // Trip name input (2 fields: emoji + name)
+                    // Input Row
                     Row(
                       children: [
-                        // Emoji field
-                        Container(
-                          width: 56,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: TextField(
-                              controller: _emojiController,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 24),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
+                        // REVISI: Emoji Picker Statis (Tanpa Keyboard/InputDecoration)
+                        GestureDetector(
+                          onTap: _showEmojiPicker,
+                          child: Container(
+                            width: 56,
+                            height: _fieldHeight,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(_borderRadius),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _selectedEmoji,
+                                style: const TextStyle(fontSize: 24),
                               ),
-                              maxLength: 2,
-                              buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                             ),
                           ),
                         ),
+                        
                         const SizedBox(width: 8),
-                        // Name field
+                        
+                        // Name Field (Input Bersih tanpa border)
                         Expanded(
                           child: Container(
-                            height: 44,
+                            height: _fieldHeight,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(_borderRadius),
                             ),
                             child: TextField(
                               controller: _tripNameController,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                color: AppColors.textPrimary,
-                              ),
+                              style: const TextStyle(fontSize: 17, color: AppColors.textPrimary),
                               decoration: InputDecoration(
                                 hintText: 'E.g. Beach Trip',
-                                hintStyle: TextStyle(
-                                  color: AppColors.textSecondary.withValues(alpha: 0.3),
-                                  fontSize: 17,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
+                                hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.3)),
+                                border: InputBorder.none, // Tanpa border/dekorasi
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
                             ),
                           ),
@@ -227,46 +270,28 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                     
                     const SizedBox(height: 32),
                     
-                    // Participants
-                    const Text(
-                      'Participants',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
+                    // Label Participants
+                    const Text('Participants', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                     const SizedBox(height: 8),
                     
-                    // Participants container
+                    // Participants List
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(_borderRadius),
                       ),
                       child: Column(
                         children: [
-                          // List participants
                           ...List.generate(_participants.length, (index) {
                             final participant = _participants[index];
                             final isCurrentUser = participant['isCurrentUser'] == true;
-                            final isGuest = participant['isGuest'] == true;
                             
                             return Column(
                               children: [
                                 if (index > 0)
-                                  Divider(
-                                    height: 0.5,
-                                    thickness: 0.5,
-                                    color: AppColors.border.withValues(alpha: 0.3),
-                                    indent: 16,
-                                  ),
+                                  Divider(height: 0.5, thickness: 0.5, color: AppColors.border.withValues(alpha: 0.3), indent: 16),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   child: Row(
                                     children: [
                                       Expanded(
@@ -281,15 +306,9 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                                                 color: AppColors.textPrimary,
                                               ),
                                             ),
-                                            if (isCurrentUser || isGuest) ...[
+                                            if (isCurrentUser) ...[
                                               const SizedBox(height: 2),
-                                              Text(
-                                                isCurrentUser ? 'Admin' : 'Guest',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: AppColors.textSecondary.withValues(alpha: 0.6),
-                                                ),
-                                              ),
+                                              Text('Admin', style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withValues(alpha: 0.6))),
                                             ],
                                           ],
                                         ),
@@ -304,11 +323,7 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                                               color: AppColors.border.withValues(alpha: 0.5),
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(
-                                              Icons.close,
-                                              size: 14,
-                                              color: Colors.white,
-                                            ),
+                                            child: const Icon(Icons.close, size: 14, color: Colors.white),
                                           ),
                                         ),
                                     ],
@@ -318,32 +333,15 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                             );
                           }),
                           
-                          // Divider before Add Member
-                          Divider(
-                            height: 0.5,
-                            thickness: 0.5,
-                            color: AppColors.border.withValues(alpha: 0.3),
-                            indent: 16,
-                          ),
+                          Divider(height: 0.5, thickness: 0.5, color: AppColors.border.withValues(alpha: 0.3), indent: 16),
                           
-                          // Add Member button
                           InkWell(
                             onTap: _showAddMemberSheet,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               child: Row(
                                 children: [
-                                  Text(
-                                    'Add Member',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w400,
-                                      color: AppColors.trivaBlue,
-                                    ),
-                                  ),
+                                  Text('Add Member', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w400, color: AppColors.trivaBlue)),
                                 ],
                               ),
                             ),
