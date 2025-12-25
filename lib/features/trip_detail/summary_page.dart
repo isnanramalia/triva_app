@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/trip_service.dart';
+import '../../core/widgets/share_trip_sheet.dart'; // ✅ Pastikan import ini ada
 
 class SummaryPage extends StatefulWidget {
   final int tripId;
+  final String tripName;
+  final List<dynamic> members;
 
-  const SummaryPage({super.key, required this.tripId});
+  const SummaryPage({
+    super.key,
+    required this.tripId,
+    required this.tripName,
+    required this.members,
+  });
 
   @override
   State<SummaryPage> createState() => _SummaryPageState();
@@ -110,18 +118,27 @@ class _SummaryPageState extends State<SummaryPage> {
     }
   }
 
+  // ✅ LOGIC SHARE BARU: Panggil Sheet Canggih (Copy + WA)
+  void _onSharePressed() {
+    showShareTripSheet(
+      context,
+      tripId: widget.tripId,
+      tripName: widget.tripName,
+      members: widget.members,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      // ❌ Hapus AppBar standar, kita ganti custom header di body
       body: SafeArea(
         child: Column(
           children: [
-            // ✅ 1. CUSTOM HEADER (Konsisten dengan Trip Detail)
+            // ✅ HEADER (Konsisten)
             _buildHeader(context),
 
-            // ✅ 2. CONTENT SCROLLABLE
+            // ✅ CONTENT
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -133,7 +150,7 @@ class _SummaryPageState extends State<SummaryPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- SECTION: OVERVIEW ---
+                          // --- SECTION 1: OVERVIEW ---
                           const Text(
                             'Balance Overview',
                             style: TextStyle(
@@ -147,7 +164,7 @@ class _SummaryPageState extends State<SummaryPage> {
 
                           const SizedBox(height: 32),
 
-                          // --- SECTION: SETTLEMENT ---
+                          // --- SECTION 2: SETTLEMENT ---
                           const Text(
                             'Settlement Plan',
                             style: TextStyle(
@@ -178,7 +195,6 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // ✅ WIDGET HEADER BARU (Sama persis dengan Detail Trip)
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -201,7 +217,7 @@ class _SummaryPageState extends State<SummaryPage> {
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Details', // Kembali ke halaman Details
+                      'Details',
                       style: TextStyle(
                         fontSize: 17,
                         color: AppColors.trivaBlue,
@@ -217,6 +233,16 @@ class _SummaryPageState extends State<SummaryPage> {
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: _onSharePressed,
+                icon: const Icon(Icons.ios_share, color: AppColors.trivaBlue),
+                tooltip: 'Share Public Link',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ),
           ],
@@ -316,7 +342,7 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // ✅ UI SETTLEMENT REVISI (List Style + Big Amount)
+  // ✅ UI SETTLEMENT (Horizontal List + BIG AMOUNT)
   Widget _buildSettlementList() {
     if (_settlementTransactions.isEmpty)
       return _buildEmptyState("All settled up!");
@@ -339,8 +365,7 @@ class _SummaryPageState extends State<SummaryPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16), // Rounded lebih halus
-            // Border merah tipis kalau hutang saya & belum lunas
+            borderRadius: BorderRadius.circular(16),
             border: (isMyObligation && !isPaid)
                 ? Border.all(color: Colors.red.withOpacity(0.1), width: 1)
                 : null,
@@ -355,12 +380,12 @@ class _SummaryPageState extends State<SummaryPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 1. DETAIL KIRI (Who to Who + Big Amount)
+              // KIRI: Detail Transfer
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // A. Who to Who (Small & Clean)
+                    // Avatar & Nama (Kecil)
                     Row(
                       children: [
                         _buildSmallAvatar(fromName, Colors.red),
@@ -398,14 +423,14 @@ class _SummaryPageState extends State<SummaryPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 8), // Jarak napas
-                    // B. BIG AMOUNT (Sesuai Request)
+                    const SizedBox(height: 8),
+
+                    // NOMINAL BESAR (BIG AMOUNT)
                     Text(
                       _formatCurrency(amount),
                       style: TextStyle(
-                        fontSize: 18, // 🔥 Jauh lebih besar
-                        fontWeight: FontWeight.w600, // Lebih tebal
-                        // Kalau lunas jadi abu & coret, kalau belum lunas hitam tegas
+                        fontSize: 20, // ✅ Besar (Bold look)
+                        fontWeight: FontWeight.w800,
                         color: isPaid
                             ? Colors.grey[400]
                             : AppColors.textPrimary,
@@ -417,7 +442,7 @@ class _SummaryPageState extends State<SummaryPage> {
                 ),
               ),
 
-              // 2. TOMBOL AKSI (KANAN)
+              // KANAN: Tombol / Badge
               Padding(
                 padding: const EdgeInsets.only(left: 12),
                 child: _buildStatusWidget(isPaid, isMyObligation, transaction),
@@ -429,14 +454,12 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // Helper Widget: Tombol Status (Konsisten)
   Widget _buildStatusWidget(
     bool isPaid,
     bool isMyObligation,
     Map<String, dynamic> transaction,
   ) {
     if (isPaid) {
-      // Badge Paid
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -453,7 +476,6 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
       );
     } else if (isMyObligation) {
-      // Tombol Pay (Jika hutang saya)
       return ElevatedButton(
         onPressed: () => _payDebt(transaction),
         style: ElevatedButton.styleFrom(
@@ -461,7 +483,7 @@ class _SummaryPageState extends State<SummaryPage> {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-          minimumSize: const Size(0, 36), // Tinggi tombol pas
+          minimumSize: const Size(0, 36),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: const Text(
@@ -470,7 +492,6 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
       );
     } else {
-      // Badge Unpaid (Jika hutang orang)
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -489,7 +510,6 @@ class _SummaryPageState extends State<SummaryPage> {
     }
   }
 
-  // Helper Avatar Kecil (Untuk baris nama)
   Widget _buildSmallAvatar(String name, Color color) {
     return Container(
       width: 20,

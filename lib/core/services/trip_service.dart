@@ -5,7 +5,7 @@ import 'auth_service.dart';
 
 class TripService {
   // ⚠️ GANTI DENGAN IP LAPTOP KAMU SAAT INI (Cek ipconfig)
-  final String baseUrl = 'http://192.168.1.10:8000/api';
+  final String baseUrl = 'http://192.168.1.5:8000/api';
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     final token = await AuthService().getToken();
@@ -366,6 +366,31 @@ class TripService {
       return null;
     } catch (e) {
       print("🔥 Error Get Summary: $e");
+      return null;
+    }
+  }
+
+  // ✅ Get Share Link
+  Future<String?> getShareLink(int tripId) async {
+    final token = await AuthService().getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/trips/$tripId/share'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']['url'];
+      }
+      return null;
+    } catch (e) {
+      print("🔥 Error Get Share Link: $e");
       return null;
     }
   }

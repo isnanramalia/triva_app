@@ -6,7 +6,7 @@ class AuthService {
   // ⚠️ Ganti IP ini sesuai setup kamu:
   // Android Emulator: 'http://10.0.2.2:8000/api'
   // iOS Simulator / Real Device: Gunakan IP Laptop (misal 'http://192.168.1.5:8000/api')
-  final String baseUrl = 'http://192.168.1.10:8000/api'; 
+  final String baseUrl = 'http://192.168.1.5:8000/api'; 
 
   Future<bool> login(String email, String password) async {
     try {

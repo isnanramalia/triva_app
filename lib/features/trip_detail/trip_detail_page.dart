@@ -855,7 +855,11 @@ class _TripDetailPageState extends State<TripDetailPage>
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => SummaryPage(tripId: widget.tripId),
+                  builder: (_) => SummaryPage(
+                    tripId: widget.tripId,
+                    tripName: widget.tripName, // Pass nama
+                    members: _members, // ✅ Pass data member lengkap (ada guest_contact)
+                  ),
                 ),
               );
               _fetchTripData();
