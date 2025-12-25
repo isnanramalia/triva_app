@@ -522,21 +522,29 @@ class _TripDetailPageState extends State<TripDetailPage>
             children: [
               TextButton.icon(
                 onPressed: () {
+                  // ✅ PERBAIKAN: Kirim ID dan Name
                   final List<Map<String, dynamic>> memberForActivity = _members
                       .map((m) {
+                        final memberId = m['id'];
+
                         final name = m['user'] != null
                             ? m['user']['name']
                             : m['guest_name'];
-                        return {'name': name.toString()};
+
+                        return {
+                          'id': memberId, 
+                          'name': name.toString(),
+                        };
                       })
                       .toList();
 
                   navigateToAddActivityPage(
                     context,
                     tripId: widget.tripId,
-                    members: memberForActivity,
+                    members:
+                        memberForActivity,
                     onActivityAdded: (activityData) {
-                      _fetchTripData();
+                      _fetchTripData(); // Refresh setelah sukses
                     },
                   );
                 },

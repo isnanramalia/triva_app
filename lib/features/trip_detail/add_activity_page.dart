@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/emoji_picker_sheet.dart';
+import '../../../core/services/trip_service.dart'; // ✅ Import Service
 
 // Helper Navigation (Full Page)
 void navigateToAddActivityPage(
@@ -25,7 +26,8 @@ void navigateToAddActivityPage(
 
 class AddActivityPage extends StatefulWidget {
   final int tripId;
-  final List<Map<String, dynamic>> members;
+  final List<Map<String, dynamic>>
+  members; // Isinya: [{'id': 1, 'name': 'Budi'}, ...]
   final Function(Map<String, dynamic>) onActivityAdded;
 
   const AddActivityPage({
@@ -48,8 +50,9 @@ class _AddActivityPageState extends State<AddActivityPage>
   final _amountController = TextEditingController();
   final _detailsController = TextEditingController();
 
-  // State Emoji
+  // State
   String _selectedEmoji = '🍽️';
+  bool _isSubmitting = false; // Loading state saat simpan
 
   // Paid By Data
   final List<Map<String, dynamic>> _paidByList = [];
@@ -68,9 +71,17 @@ class _AddActivityPageState extends State<AddActivityPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Init Split Portions
     for (var member in widget.members) {
       _splitPortions[member['name']] = 1.0;
     }
+
+    // Default Payer: Orang pertama di list (biasanya User yang login/admin)
+    if (widget.members.isNotEmpty) {
+      _addPayer(widget.members.first['name']);
+    }
+
     _recalculateSplit();
   }
 
@@ -80,12 +91,8 @@ class _AddActivityPageState extends State<AddActivityPage>
     _titleController.dispose();
     _amountController.dispose();
     _detailsController.dispose();
-    for (var c in _paidByControllers.values) {
-      c.dispose();
-    }
-    for (var c in _splitControllers.values) {
-      c.dispose();
-    }
+    for (var c in _paidByControllers.values) c.dispose();
+    for (var c in _splitControllers.values) c.dispose();
     super.dispose();
   }
 
@@ -119,17 +126,15 @@ class _AddActivityPageState extends State<AddActivityPage>
             : 0.0;
       }
     }
-    // Note: 'custom' tidak dihitung ulang otomatis agar input user tidak tertimpa
     setState(() {});
   }
 
   String _formatCurrency(double amount) {
-    final format = NumberFormat.currency(
+    return NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
-    );
-    return format.format(amount);
+    ).format(amount);
   }
 
   void _addPayer(String name) {
@@ -179,7 +184,9 @@ class _AddActivityPageState extends State<AddActivityPage>
     setState(() => _splitAmounts[name] = amount);
   }
 
-  void _saveActivity() {
+  // ✅ LOGIC SIMPAN KE API
+  Future<void> _saveActivity() async {
+    // 1. Validasi Input Basic
     if (_titleController.text.isEmpty ||
         _amountController.text.isEmpty ||
         _paidByList.isEmpty) {
@@ -189,39 +196,97 @@ class _AddActivityPageState extends State<AddActivityPage>
       return;
     }
 
-    final totalPaidBy = _paidByList.fold<double>(
-      0.0,
-      (sum, item) => sum + (item['amount'] as double),
-    );
     final totalAmount =
         double.tryParse(
           _amountController.text.replaceAll('.', '').replaceAll(',', ''),
         ) ??
         0.0;
 
-    if ((totalPaidBy - totalAmount).abs() > 100) {
+    // 2. Validasi Payer (Untuk MVP, Backend hanya support 1 payer per transaksi)
+    // Jika user memasukkan multiple payer, kita ambil payer dengan jumlah terbesar atau pertama.
+    // TODO: Update backend untuk support multi-payer transaction di masa depan.
+
+    // Untuk sekarang, kita ambil payer pertama saja sebagai 'paid_by_member_id'
+    final mainPayerName = _paidByList.first['name'];
+
+    // Cari ID dari Nama Payer
+    final mainPayerId = widget.members.firstWhere(
+      (m) => m['name'] == mainPayerName,
+      orElse: () => {'id': 0},
+    )['id'];
+
+    if (mainPayerId == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Total paid (${_formatCurrency(totalPaidBy)}) must equal amount (${_formatCurrency(totalAmount)})',
-          ),
-        ),
+        const SnackBar(content: Text('Error: Payer not found in member list')),
       );
       return;
     }
 
-    final activityData = {
+    // 3. Susun Data Splits
+    List<Map<String, dynamic>> splitsPayload = [];
+    double totalSplitCheck = 0.0;
+
+    _splitAmounts.forEach((name, amount) {
+      if (amount > 0) {
+        final memberId = widget.members.firstWhere(
+          (m) => m['name'] == name,
+        )['id'];
+        splitsPayload.add({'member_id': memberId, 'amount': amount});
+        totalSplitCheck += amount;
+      }
+    });
+
+    // Validasi Total Split harus sama dengan Total Amount (Toleransi 100 rupiah utk pembulatan)
+    if ((totalSplitCheck - totalAmount).abs() > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Total splits must equal total amount')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    // 4. Susun Payload Akhir
+    final apiPayload = {
       'title': _titleController.text,
+      'description': _detailsController.text,
       'emoji': _selectedEmoji,
-      'amount': totalAmount,
-      'date': DateTime.now().toString(),
-      'paid_by': _paidByList,
-      'split_type': _splitType,
-      'split': _splitAmounts,
+      'date': DateTime.now().toIso8601String(),
+      'total_amount': totalAmount,
+      'paid_by_member_id': mainPayerId, // Backend perlu ID
+      'split_type': _splitType, // 'equally', 'portion', 'custom'
+      'splits': splitsPayload,
     };
 
-    widget.onActivityAdded(activityData);
-    Navigator.pop(context);
+    // 5. Panggil Service
+    final success = await TripService().createTransaction(
+      widget.tripId,
+      apiPayload,
+    );
+
+    if (mounted) setState(() => _isSubmitting = false);
+
+    if (success) {
+      // Callback untuk update UI (Opsional, krn TripDetail akan refresh sendiri)
+      widget.onActivityAdded({
+        'title': _titleController.text,
+        'emoji': _selectedEmoji,
+        'amount': totalAmount,
+        'date': DateTime.now().toIso8601String(),
+        'paid_by': [
+          {'name': mainPayerName},
+        ], // Mock return utk UI instan
+      });
+      Navigator.pop(context);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add activity. Check connection.'),
+          ),
+        );
+      }
+    }
   }
 
   void _showEmojiPicker() {
@@ -233,7 +298,6 @@ class _AddActivityPageState extends State<AddActivityPage>
     );
   }
 
-  // --- Input Decoration Helper (Agar Konsisten) ---
   InputDecoration _getInputDecoration({
     String? hintText,
     Widget? prefixIcon,
@@ -250,20 +314,14 @@ class _AddActivityPageState extends State<AddActivityPage>
       isDense: true,
       prefixIcon: prefixIcon,
       prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-
-      // ✅ PERBAIKAN: Pakai AppColors.border, bukan BorderSide.none
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_borderRadius),
         borderSide: const BorderSide(color: AppColors.border),
       ),
-
-      // Saat diklik warnanya biru
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_borderRadius),
         borderSide: const BorderSide(color: AppColors.trivaBlue),
       ),
-
-      // Default fallback
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_borderRadius),
         borderSide: const BorderSide(color: AppColors.border),
@@ -302,6 +360,7 @@ class _AddActivityPageState extends State<AddActivityPage>
       ),
       body: Column(
         children: [
+          // Tab Switcher
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             height: 40,
@@ -338,6 +397,7 @@ class _AddActivityPageState extends State<AddActivityPage>
               ],
             ),
           ),
+
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -350,7 +410,9 @@ class _AddActivityPageState extends State<AddActivityPage>
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: ElevatedButton(
-            onPressed: _tabController.index == 0 ? _saveActivity : null,
+            onPressed: (_tabController.index == 0 && !_isSubmitting)
+                ? _saveActivity
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.trivaBlue,
               foregroundColor: Colors.white,
@@ -360,10 +422,19 @@ class _AddActivityPageState extends State<AddActivityPage>
               ),
               elevation: 0,
             ),
-            child: const Text(
-              'Add',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'Add',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
           ),
         ),
       ),
@@ -376,7 +447,6 @@ class _AddActivityPageState extends State<AddActivityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- TITLE INPUT ---
           const Text(
             'Title',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -384,7 +454,6 @@ class _AddActivityPageState extends State<AddActivityPage>
           const SizedBox(height: 8),
           Row(
             children: [
-              // Emoji Picker
               GestureDetector(
                 onTap: _showEmojiPicker,
                 child: Container(
@@ -393,18 +462,17 @@ class _AddActivityPageState extends State<AddActivityPage>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(_borderRadius),
-                    border: Border.all(color: AppColors.border), // ✅ ADA BORDER
+                    border: Border.all(color: AppColors.border),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _selectedEmoji,
-                    style: const TextStyle(fontSize: 24),
+                  child: Center(
+                    child: Text(
+                      _selectedEmoji,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-
-              // Title TextField
               Expanded(
                 child: TextField(
                   controller: _titleController,
@@ -417,7 +485,6 @@ class _AddActivityPageState extends State<AddActivityPage>
 
           const SizedBox(height: 24),
 
-          // --- AMOUNT INPUT ---
           const Text(
             'Amount',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -454,53 +521,17 @@ class _AddActivityPageState extends State<AddActivityPage>
                 'Paid By',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
-              GestureDetector(
-                onTap: () {
-                  final available = widget.members.firstWhere(
-                    (m) => !_paidByList.any((p) => p['name'] == m['name']),
-                    orElse: () => widget.members.first,
-                  );
-                  _addPayer(available['name']);
-                },
-                child: const Row(
-                  children: [
-                    Icon(Icons.add, size: 16, color: AppColors.trivaBlue),
-                    Text(
-                      ' Add',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.trivaBlue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // NOTE: Fitur multi-payer di-hide dulu untuk MVP API
+              // GestureDetector(...)
             ],
           ),
           const SizedBox(height: 8),
 
-          if (_paidByList.isEmpty)
-            Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(_borderRadius),
-                border: Border.all(color: AppColors.border), // ✅ ADA BORDER
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                'Who paid?',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.textSecondary.withOpacity(0.5),
-                ),
-              ),
-            )
+          // Logic Payer Sederhana (Hanya 1 Payer untuk MVP)
+          if (_paidByList.isNotEmpty)
+            _buildPaidByRow(0) // Hanya tampilkan index 0
           else
-            ...List.generate(_paidByList.length, (index) {
-              return _buildPaidByRow(index);
-            }),
+            const SizedBox(), // Should not happen karena initstate nambah default
 
           const SizedBox(height: 24),
 
@@ -609,115 +640,58 @@ class _AddActivityPageState extends State<AddActivityPage>
               }),
             ),
           ),
-
           const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  // --- Widgets for Lists ---
-
+  // Helper Widgets
   Widget _buildPaidByRow(int index) {
     final payer = _paidByList[index];
     final name = payer['name'];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          // 1. Name Dropdown (Dibuat mirip TextField)
-          Expanded(
-            flex: 4,
-            child: Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(_borderRadius),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: name,
-                  isExpanded: true,
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'SF_Pro_Font',
-                  ),
-                  items: widget.members
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m['name'] as String,
-                          child: Text(m['name']),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) =>
-                      val != null ? _changePayerName(index, val) : null,
-                ),
-              ),
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(_borderRadius),
+              border: Border.all(color: AppColors.border),
             ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // 2. Amount Input (TextField Murni)
-          Expanded(
-            flex: 6,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _paidByControllers[name],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 15),
-                    onChanged: (value) {
-                      final amount =
-                          double.tryParse(
-                            value.replaceAll('.', '').replaceAll(',', ''),
-                          ) ??
-                          0.0;
-                      _updatePayerAmount(name, amount);
-                    },
-                    decoration: _getInputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 8),
-                        child: Text(
-                          'Rp',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: AppColors.textSecondary.withOpacity(0.6),
-                          ),
-                        ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: name,
+                isExpanded: true,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'SF_Pro_Font',
+                ),
+                items: widget.members
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m['name'] as String,
+                        child: Text(m['name']),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  onPressed: () => _removePayer(index),
-                  icon: Icon(Icons.close, size: 20, color: Colors.grey[400]),
-                  splashRadius: 20,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                ),
-              ],
+                    )
+                    .toList(),
+                onChanged: (val) =>
+                    val != null ? _changePayerName(index, val) : null,
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -794,7 +768,6 @@ class _AddActivityPageState extends State<AddActivityPage>
         ],
       );
     } else {
-      // Custom Split
       return Row(
         children: [
           Expanded(
@@ -817,11 +790,8 @@ class _AddActivityPageState extends State<AddActivityPage>
                       vertical: 10,
                     ),
                   ).copyWith(
-                    // Override border untuk custom input di dalam list agar lebih tipis/berbeda jika mau
-                    // Tapi disini saya pakai style standard agar konsisten
                     filled: true,
-                    fillColor: AppColors
-                        .surface, // Sedikit berbeda biar kelihatan input
+                    fillColor: AppColors.surface,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
@@ -850,10 +820,8 @@ class _AddActivityPageState extends State<AddActivityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Title',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          const Text('Title',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -866,39 +834,33 @@ class _AddActivityPageState extends State<AddActivityPage>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(_borderRadius),
-                    border: Border.all(
-                      color: AppColors.border,
-                    ), // ✅ Tambahkan ini
+                    border: Border.all(color: AppColors.border), // ✅ Tambahkan ini
                   ),
                   child: Center(
-                    child: Text(
-                      _selectedEmoji,
-                      style: const TextStyle(fontSize: 24),
-                    ),
+                    child: Text(_selectedEmoji,
+                        style: const TextStyle(fontSize: 24)),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-
+              
               // Title Input
               Expanded(
                 child: TextField(
                   controller: _titleController,
                   style: const TextStyle(fontSize: 17),
                   // Ini sudah aman karena _getInputDecoration sudah kita perbaiki sebelumnya
-                  decoration: _getInputDecoration(hintText: 'E.g. Villa'),
+                  decoration: _getInputDecoration(hintText: 'E.g. Villa'), 
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-
-          const Text(
-            'Details',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+          
+          const Text('Details',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-
+          
           // Details Input
           TextField(
             controller: _detailsController,
@@ -909,9 +871,9 @@ class _AddActivityPageState extends State<AddActivityPage>
               contentPadding: const EdgeInsets.all(16),
             ),
           ),
-
+          
           const SizedBox(height: 24),
-
+          
           // Scan Receipt Button
           OutlinedButton(
             onPressed: () {},
@@ -920,41 +882,35 @@ class _AddActivityPageState extends State<AddActivityPage>
               side: const BorderSide(color: Color(0xFF9C27B0), width: 1.5),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_borderRadius),
-              ),
+                  borderRadius: BorderRadius.circular(_borderRadius)),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.receipt_long, size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Scan Receipt (optional)',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
+                Text('Scan Receipt (optional)',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
-
+          
           const SizedBox(height: 32),
-
+          
           // AI Placeholder
           Center(
             child: Column(
               children: [
-                Icon(
-                  Icons.auto_awesome,
-                  color: AppColors.trivaBlue.withOpacity(0.5),
-                  size: 32,
-                ),
+                Icon(Icons.auto_awesome,
+                    color: AppColors.trivaBlue.withOpacity(0.5), size: 32),
                 const SizedBox(height: 8),
                 Text(
                   'AI Features Coming Soon! 🚀',
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.trivaBlue.withOpacity(0.8),
-                  ),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.trivaBlue.withOpacity(0.8)),
                 ),
               ],
             ),
@@ -970,7 +926,6 @@ class _PortionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   const _PortionButton({required this.icon, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(

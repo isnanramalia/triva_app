@@ -229,4 +229,88 @@ class TripService {
       return false;
     }
   }
+
+  // ✅ BARU: Create Transaction (Manual)
+  Future<bool> createTransaction(int tripId, Map<String, dynamic> data) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/trips/$tripId/transactions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return true;
+      } else {
+        print("❌ Gagal Create Transaction: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("🔥 Error Create Transaction Service: $e");
+      return false;
+    }
+  }
+
+  // ✅ BARU: Ambil Saran Pembayaran (Siapa hutang siapa)
+  Future<List<dynamic>> getSettlementSuggestions(int tripId) async {
+    final token = await AuthService().getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/trips/$tripId/settlements/suggest'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print("🔥 Error Get Settlements: $e");
+      return [];
+    }
+  }
+
+  // ✅ BARU: Bayar Hutang (Set as Paid)
+  Future<bool> createSettlement(int tripId, int fromMemberId, int toMemberId, double amount) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/trips/$tripId/settlements'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'from_member_id': fromMemberId,
+          'to_member_id': toMemberId,
+          'amount': amount,
+        }),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return true;
+      } else {
+        print("❌ Gagal Settlement: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("🔥 Error Create Settlement: $e");
+      return false;
+    }
+  }
 }
