@@ -51,7 +51,7 @@ class TripService {
   }
 
   // Fungsi Create Trip
-  Future<bool> createTripWithMembers({
+  Future<int?> createTripWithMembers({
     required String name,
     required String? coverUrl,
     required String startDate,
@@ -59,7 +59,7 @@ class TripService {
     required List<Map<String, dynamic>> members,
   }) async {
     final token = await AuthService().getToken();
-    if (token == null) return false;
+    if (token == null) return null;
 
     try {
       print("🚀 Creating Trip: $name to $baseUrl");
@@ -86,7 +86,7 @@ class TripService {
 
       if (tripResponse.statusCode != 201) {
         print("❌ Gagal Create Trip: ${tripResponse.body}");
-        return false;
+        return null;
       }
 
       final tripData = jsonDecode(tripResponse.body)['data'];
@@ -123,10 +123,10 @@ class TripService {
       }
 
       print("✅ Trip Created Successfully!");
-      return true;
+      return tripId;
     } catch (e) {
       print("🔥 Error Service: $e");
-      return false;
+      return null;
     }
   }
 

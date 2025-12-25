@@ -165,7 +165,8 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await TripService().createTripWithMembers(
+      // ✅ Tangkap tripId (sekarang return int?)
+      final tripId = await TripService().createTripWithMembers(
         name: name,
         coverUrl: _coverUrl,
         startDate: _startDate.toIso8601String(),
@@ -175,13 +176,16 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
 
       if (mounted) setState(() => _isLoading = false);
 
-      if (success) {
+      // ✅ Cek jika tripId tidak null (sukses)
+      if (tripId != null) {
         widget.onSuccess?.call();
         if (!mounted) return;
-        Navigator.pop(context);
+        Navigator.pop(context); // Tutup form create
 
+        // ✅ Panggil Sheet Sukses dengan tripId
         showTripCreatedSheet(
           context,
+          tripId: tripId,
           tripName: name,
           tripEmoji: '✈️',
           participants: _participants,
