@@ -3,8 +3,9 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import 'activity_detail_page.dart';
 import 'summary_page.dart';
-import '../../core/widgets/add_member_sheet.dart'; // Pastikan path ini benar atau comment jika belum ada file-nya
+import '../../core/widgets/add_member_sheet.dart';
 import 'add_activity_page.dart';
+import '../../../core/services/trip_service.dart';
 
 class TripDetailPage extends StatefulWidget {
   final int tripId;
@@ -25,121 +26,251 @@ class TripDetailPage extends StatefulWidget {
 class _TripDetailPageState extends State<TripDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoadingActivities = true;
-  late Map<String, dynamic> _tripData;
+  bool _isLoading = true;
 
-  // Mock trip summary
-  // Map<String, dynamic> _tripData = {
-  //   "id": 1,
-  //   "name": "Venice",
-  //   "members_count": 5,
-  //   "activities_count": 3,
-  //   "cover_url":
-  //       "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=400",
-  //   "total_expenses": 17300000,
-  //   "my_expenses": 3460000,
-  // };
+  // Data Trip Real
+  Map<String, dynamic> _tripData = {};
+  List<dynamic> _members = [];
+  List<dynamic> _activities = [];
 
-  // Mock members
-  final List<Map<String, dynamic>> _members = [
-    {'name': 'Neena', 'username': '@neena', 'isAdmin': true},
-    {'name': 'Ahmad', 'username': '@ahmad', 'isAdmin': false},
-    {'name': 'Budi', 'username': '@budi', 'isAdmin': false},
-    {'name': 'Amanda', 'username': '@amanda', 'isAdmin': false},
-    {'name': 'Risa', 'username': '@risa', 'isAdmin': false},
-  ];
+  // Expenses Calculation
+  double _totalExpenses = 0;
 
-  // Activities list
-  List<Map<String, dynamic>> _activities = [];
-
-  // My Balance Data
-  final List<Map<String, dynamic>> _myBalance = [
-    {"description": "You owed Ahmad", "amount": 13000000, "status": "unpaid"},
-    {
-      "description": "Amanda owes You",
-      "amount": 13000000,
-      "status": "not_paid_yet",
-    },
-  ];
+  // Mock My Balance
+  final List<Map<String, dynamic>> _myBalance = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
-    // Init data dengan gambar dari parameter widget
+
+    // Set data awal
     _tripData = {
       "id": widget.tripId,
       "name": widget.tripName,
-      "members_count": 5,
-      "activities_count": 3,
-      "cover_url": widget.coverUrl, // Gunakan gambar yang dikirim dari list
-      "total_expenses": 17300000,
-      "my_expenses": 3460000,
+      "cover_url": widget.coverUrl,
+      "members_count": 0,
+      "activities_count": 0,
+      "my_expenses": 0,
+      "total_expenses": 0,
     };
 
-    _loadActivities();
+    _fetchTripData();
   }
 
-  Future<void> _loadActivities() async {
-    setState(() {
-      _isLoadingActivities = true;
-    });
+  Future<void> _fetchTripData() async {
+    setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(milliseconds: 500));
+    final data = await TripService().getTripDetail(widget.tripId);
 
     if (mounted) {
       setState(() {
-        _activities = [
-          {
-            "id": 10,
-            "title": "Villa",
-            "emoji": "🛏️",
-            "date": "2025-12-01 13:00:00",
-            "total_amount": 13000000,
-            "paid_by_summary": "Ahmad, Budi",
-          },
-          {
-            "id": 11,
-            "title": "Gondola",
-            "emoji": "🛶",
-            "date": "2025-12-02 10:00:00",
-            "total_amount": 1500000,
-            "paid_by_summary": "Neena",
-          },
-          {
-            "id": 12,
-            "title": "Fine Dining",
-            "emoji": "🥂",
-            "date": "2025-12-02 19:00:00",
-            "total_amount": 2800000,
-            "paid_by_summary": "Risa",
-          },
-        ];
+        if (data != null) {
+          _tripData = data;
+          _members = data['members'] ?? [];
+          _activities = data['transactions'] ?? [];
 
-        // Recalculate totals based on loaded activities
-        _calculateTotals();
+          _totalExpenses = _activities.fold(0.0, (sum, item) {
+            final amt = double.tryParse(item['total_amount'].toString()) ?? 0.0;
+            return sum + amt;
+          });
 
-        _isLoadingActivities = false;
+          _tripData['total_expenses'] = _totalExpenses;
+          _tripData['activities_count'] = _activities.length;
+          _tripData['members_count'] = _members.length;
+        }
+        _isLoading = false;
       });
     }
   }
 
-  void _calculateTotals() {
-    // Hitung ulang total expenses dari activities
-    double total = 0.0;
-    for (var act in _activities) {
-      total += (act['total_amount'] as num).toDouble();
-    }
+  // ✅ SHEET: LIST MEMBER
+  void _showMembersListSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Trip Members',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showAddMemberInput();
+                    },
+                    icon: const Icon(Icons.person_add, size: 18),
+                    label: const Text('Add'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.trivaBlue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _members.length,
+                separatorBuilder: (c, i) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final member = _members[index];
+                  final isGuest = member['user'] == null;
+                  final name = isGuest
+                      ? member['guest_name']
+                      : member['user']['name'];
+                  final role = member['role'];
 
-    // Update state trip data
-    _tripData['total_expenses'] = total;
-    _tripData['activities_count'] = _activities.length;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isGuest
+                            ? Colors.orange.withOpacity(0.1)
+                            : AppColors.trivaBlue.withOpacity(0.1),
+                        child: Text(
+                          name.toString()[0].toUpperCase(),
+                          style: TextStyle(
+                            color: isGuest
+                                ? Colors.orange
+                                : AppColors.trivaBlue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          if (role == 'admin') ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Admin',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      subtitle: Text(
+                        isGuest ? 'Guest (No Account)' : 'Registered User',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      trailing: isGuest
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                size: 18,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Edit feature coming soon!'),
+                                  ),
+                                );
+                              },
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    // (Opsional) Di sini kamu bisa menambahkan logika untuk update _myBalance
-    // secara dinamis berdasarkan "Split" dari activity, tapi untuk sekarang
-    // kita pakai mock _myBalance dulu agar UI muncul.
+  // ✅ LOGIC ADD MEMBER
+  void _showAddMemberInput() {
+    final existingNames = _members.map<String>((m) {
+      if (m['user'] != null) return m['user']['name'].toString();
+      return m['guest_name'].toString();
+    }).toList();
+
+    showAddMemberSheet(
+      context,
+      excludeNames: existingNames,
+      onAddMember: (newMember) async {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Adding member...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+
+        final success = await TripService().addMemberToTrip(
+          widget.tripId,
+          newMember,
+        );
+
+        if (success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Member added successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _fetchTripData();
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to add member'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+    );
   }
 
   @override
@@ -156,6 +287,14 @@ class _TripDetailPageState extends State<TripDetailPage>
     ).format(amount);
   }
 
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    List<String> words = name.trim().split(RegExp(r'\s+'));
+    String initials = words[0][0];
+    if (words.length > 1) initials += words[1][0];
+    return initials.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,15 +302,14 @@ class _TripDetailPageState extends State<TripDetailPage>
       body: SafeArea(
         child: Column(
           children: [
-            // --- Header ---
+            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: SizedBox(
-                height: 40, // Tinggi fix agar layout stabil
+                height: 40,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Kiri: Back Button
                     Align(
                       alignment: Alignment.centerLeft,
                       child: GestureDetector(
@@ -179,32 +317,40 @@ class _TripDetailPageState extends State<TripDetailPage>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.trivaBlue),
+                            const Icon(
+                              Icons.arrow_back_ios_new,
+                              size: 20,
+                              color: AppColors.trivaBlue,
+                            ),
                             const SizedBox(width: 4),
-                            Text('Trips', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue)),
+                            const Text(
+                              'Trips',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: AppColors.trivaBlue,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    
-                    // Tengah: Judul
                     const Text(
                       'Details',
                       style: TextStyle(
-                        fontSize: 17, 
-                        fontWeight: FontWeight.w600, 
-                        color: AppColors.textPrimary
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-
-                    // Kanan: Add Member Icon
                     Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
-                        onPressed: () {
-                          // showAddMemberSheet(...);
-                        },
-                        icon: const Icon(Icons.person_add, size: 24, color: AppColors.trivaBlue),
+                        onPressed: _showMembersListSheet,
+                        icon: const Icon(
+                          Icons.group_add,
+                          size: 26,
+                          color: AppColors.trivaBlue,
+                        ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -214,56 +360,99 @@ class _TripDetailPageState extends State<TripDetailPage>
               ),
             ),
 
-            // --- Trip Info ---
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: _tripData['cover_url'] != null
-                          ? Image.network(
-                              _tripData['cover_url'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => Container(
-                                color: AppColors.trivaBlue.withOpacity(0.1),
-                                child: Icon(Icons.landscape, color: AppColors.trivaBlue, size: 40),
+            // ✅ SECTION TRIP INFO (OVERLAY STYLE)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: double.infinity,
+                height: 220, // Tinggi banner
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 1. IMAGE BACKGROUND
+                      _buildCoverImage(),
+
+                      // 2. GRADIENT OVERLAY (Supaya teks terbaca)
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7), // Hitam di bawah
+                            ],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+
+                      // 3. TEXT CONTENT (Positioned)
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Judul Trip
+                            Text(
+                              _tripData['name'] ?? 'Loading...',
+                              style: const TextStyle(
+                                fontSize: 26, // Lebih besar
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white, // Text Putih
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
                               ),
-                            )
-                          : Container(
-                              color: AppColors.trivaBlue.withOpacity(0.1),
-                              child: Icon(Icons.landscape, color: AppColors.trivaBlue, size: 40),
                             ),
-                    ),
+                            const SizedBox(height: 8),
+
+                            // Badge Stats (Member & Activities)
+                            Row(
+                              children: [
+                                _buildStatBadge(
+                                  Icons.people,
+                                  '${_tripData['members_count'] ?? 0} Members',
+                                  isOverlay: true, // Style khusus overlay
+                                ),
+                                const SizedBox(width: 8),
+                                _buildStatBadge(
+                                  Icons.local_activity,
+                                  '${_tripData['activities_count'] ?? 0} Activities',
+                                  isOverlay: true,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.tripName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_tripData['members_count']} Members • ${_tripData['activities_count']} Activities',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary.withOpacity(0.8),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // --- Tab Bar ---
+            // --- TAB BAR ---
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               height: 44,
@@ -302,17 +491,20 @@ class _TripDetailPageState extends State<TripDetailPage>
 
             const SizedBox(height: 16),
 
-            // --- Tab Views ---
+            // --- TAB CONTENT ---
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [_buildActivitiesTab(), _buildExpensesTab()],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [_buildActivitiesTab(), _buildExpensesTab()],
+                    ),
             ),
           ],
         ),
       ),
 
+      // Floating Action Button
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -330,39 +522,21 @@ class _TripDetailPageState extends State<TripDetailPage>
             children: [
               TextButton.icon(
                 onPressed: () {
+                  final List<Map<String, dynamic>> memberForActivity = _members
+                      .map((m) {
+                        final name = m['user'] != null
+                            ? m['user']['name']
+                            : m['guest_name'];
+                        return {'name': name.toString()};
+                      })
+                      .toList();
+
                   navigateToAddActivityPage(
                     context,
                     tripId: widget.tripId,
-                    members: _members,
+                    members: memberForActivity,
                     onActivityAdded: (activityData) {
-                      setState(() {
-                        // 1. Add new activity
-                        _activities.add({
-                          'id': DateTime.now().millisecondsSinceEpoch,
-                          'title': activityData['title'],
-                          'emoji': activityData['emoji'],
-                          'date': activityData['date'],
-                          'total_amount': activityData['amount'],
-                          'paid_by_summary': activityData['paid_by'].map((p) => p['name']).join(', '),
-                        });
-
-                        // 2. Add dummy expense item so user sees change in Expenses tab
-                        _myBalance.add({
-                          "description":
-                              "You paid for ${activityData['title']}",
-                          "amount": activityData['amount'],
-                          "status": "unpaid", // Mock status
-                        });
-
-                        // 3. Recalculate totals
-                        _calculateTotals();
-                      });
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${activityData['title']} added!'),
-                        ),
-                      );
+                      _fetchTripData();
                     },
                   );
                 },
@@ -383,11 +557,78 @@ class _TripDetailPageState extends State<TripDetailPage>
     );
   }
 
-  Widget _buildActivitiesTab() {
-    if (_isLoadingActivities) {
-      return const Center(child: CircularProgressIndicator());
+  // ✅ Helper: Build Cover Image (Network / Initials)
+  Widget _buildCoverImage() {
+    if (_tripData['cover_url'] != null &&
+        _tripData['cover_url'].toString().isNotEmpty) {
+      return Image.network(
+        _tripData['cover_url'],
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => Container(
+          color: AppColors.trivaBlue,
+          child: Center(
+            child: Text(
+              _getInitials(_tripData['name'] ?? ''),
+              style: const TextStyle(
+                fontSize: 60,
+                fontWeight: FontWeight.bold,
+                color: Colors.white30,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        color: AppColors.trivaBlue,
+        child: Center(
+          child: Text(
+            _getInitials(_tripData['name'] ?? ''),
+            style: const TextStyle(
+              fontSize: 60,
+              fontWeight: FontWeight.bold,
+              color: Colors.white30, // Putih transparan biar elegan
+            ),
+          ),
+        ),
+      );
     }
+  }
 
+  // ✅ Helper: Badge Stats (Support Overlay Style)
+  Widget _buildStatBadge(IconData icon, String text, {bool isOverlay = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        // Kalau overlay: background putih transparan (glassmorphism)
+        color: isOverlay ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+        border: isOverlay
+            ? Border.all(color: Colors.white.withOpacity(0.1))
+            : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isOverlay ? Colors.white : AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isOverlay ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivitiesTab() {
     if (_activities.isEmpty) {
       return Center(
         child: Column(
@@ -395,17 +636,13 @@ class _TripDetailPageState extends State<TripDetailPage>
           children: [
             Icon(
               Icons.receipt_long_outlined,
-              size: 60,
-              color: AppColors.textSecondary.withOpacity(0.4),
+              size: 48,
+              color: AppColors.textSecondary.withOpacity(0.3),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             const Text(
               'No activities yet',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
             ),
           ],
         ),
@@ -437,131 +674,96 @@ class _TripDetailPageState extends State<TripDetailPage>
   }
 
   Widget _buildExpensesTab() {
-    final hasExpenses = _myBalance.isNotEmpty;
-
-    if (!hasExpenses) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 60, color: AppColors.textSecondary.withOpacity(0.4)),
-            const SizedBox(height: 16),
-            const Text('No expenses yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-          ],
-        ),
-      );
-    }
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Cards
           Row(
             children: [
-              Expanded(child: _ExpenseSummaryCard(title: 'My Expenses', amount: _tripData['my_expenses'], formatCurrency: _formatCurrency)),
+              Expanded(
+                child: _ExpenseSummaryCard(
+                  title: 'My Expenses',
+                  amount: 0,
+                  formatCurrency: _formatCurrency,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _ExpenseSummaryCard(title: 'Total Expenses', amount: _tripData['total_expenses'], formatCurrency: _formatCurrency)),
+              Expanded(
+                child: _ExpenseSummaryCard(
+                  title: 'Total Expenses',
+                  amount: _totalExpenses,
+                  formatCurrency: _formatCurrency,
+                ),
+              ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Summary Link
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SummaryPage())),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SummaryPage()),
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Summary', style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-                  Icon(Icons.chevron_right, color: AppColors.textSecondary.withOpacity(0.5)),
+                  const Text(
+                    'Summary',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textSecondary.withOpacity(0.5),
+                  ),
                 ],
               ),
             ),
           ),
-
           const SizedBox(height: 24),
-
-          const Text('My Balance', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-          const SizedBox(height: 8),
-
-          // LIST ITEMS
-          ..._myBalance.map((balance) {
-            final isUnpaid = balance['status'] == 'unpaid';
-            final isNotPaidYet = balance['status'] == 'not_paid_yet'; // Status orang lain
-            final isPaid = balance['status'] == 'paid';
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(balance['description'] ?? 'Expense', style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withOpacity(0.7))),
-                        const SizedBox(height: 4),
-                        Text(_formatCurrency(balance['amount'] ?? 0), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                      ],
+          if (_myBalance.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 48,
+                      color: AppColors.textSecondary.withOpacity(0.3),
                     ),
-                  ),
-                  
-                  // Kanan: Tombol/Status (Konsisten dengan Summary Page)
-                  if (isPaid)
-                    OutlinedButton(
-                      onPressed: () {}, // Action to unpay if needed
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green,
-                        side: const BorderSide(color: Colors.green),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                        minimumSize: const Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Paid', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    )
-                  else if (isUnpaid)
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.trivaBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                        minimumSize: const Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Set as Paid', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    )
-                  else if (isNotPaidYet)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('Not paid yet', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No pending balances',
+                      style: TextStyle(color: Colors.grey),
                     ),
-                ],
+                  ],
+                ),
               ),
-            );
-          }),
-
-          const SizedBox(height: 32),
+            )
+          else
+            const Text(
+              'My Balance',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-// Widget Extract untuk Summary Card agar kode lebih rapi
 class _ExpenseSummaryCard extends StatelessWidget {
   final String title;
   final num amount;
@@ -627,6 +829,13 @@ class _ActivityCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -655,7 +864,7 @@ class _ActivityCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Paid by ${activity['paid_by_summary'] ?? 'Unknown'}',
+                    '${DateFormat('d MMM').format(DateTime.parse(activity['date']))}',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary.withOpacity(0.8),

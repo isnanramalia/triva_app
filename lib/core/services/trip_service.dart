@@ -164,4 +164,69 @@ class TripService {
       rethrow; // Lempar error agar UI tahu
     }
   }
+
+  Future<Map<String, dynamic>?> getTripDetail(int id) async {
+    final token = await AuthService().getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/trips/$id'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']; // Mengembalikan object trip lengkap
+      } else {
+        print("❌ Gagal Get Detail: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("🔥 Error Get Detail: $e");
+      return null;
+    }
+  }
+
+  // ✅ BARU: Add Single Member to Existing Trip
+  Future<bool> addMemberToTrip(int tripId, Map<String, dynamic> member) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      Map<String, dynamic> body = {
+        "role": "member",
+        "type": (member['email'] != null) ? "user" : "guest",
+      };
+
+      if (body["type"] == "user") {
+        body["email"] = member['email'];
+      } else {
+        body["guest_name"] = member['name'];
+        body["guest_contact"] = member['contact']; // Wajib untuk guest
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/trips/$tripId/members'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return true;
+      } else {
+        print("❌ Gagal Add Member: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("🔥 Error Add Member Service: $e");
+      return false;
+    }
+  }
 }
