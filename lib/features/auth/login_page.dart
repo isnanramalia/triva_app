@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../../core/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,18 +28,31 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isSubmitting = true);
 
-    // TODO: nanti ganti call POST /login
-    await Future.delayed(const Duration(milliseconds: 800));
+    final authService = AuthService();
+    final success = await authService.login(
+      _emailCtrl.text,
+      _passwordCtrl.text,
+    );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    // Setelah login sukses → ke Trips list
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.tripsList,
-      (route) => false,
-    );
+    if (success) {
+      // Login Sukses -> Pindah ke Trips List
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.tripsList,
+        (route) => false,
+      );
+    } else {
+      // Login Gagal -> Munculkan pesan error
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login gagal. Periksa email dan password.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
