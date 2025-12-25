@@ -1,74 +1,117 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 
 class TripService {
-  final String baseUrl = 'http://10.0.2.2:8000/api'; // Sesuaikan IP
+  // ⚠️ GANTI DENGAN IP LAPTOP KAMU SAAT INI (Cek ipconfig)
+  final String baseUrl = 'http://192.168.1.10:8000/api';
 
-  // Fungsi Create Trip Lengkap (Header + Member)
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    final token = await AuthService().getToken();
+    if (token == null) return [];
+
+    try {
+      // Build URL dengan query parameter
+      final uri = Uri.parse(
+        '$baseUrl/users',
+      ).replace(queryParameters: {if (query.isNotEmpty) 'search': query});
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List<dynamic> users = data['data'];
+
+        // Mapping biar sesuai format UI
+        return users
+            .map(
+              (u) => {
+                'name': u['name'],
+                'email': u['email'], // Simpan email untuk keperluan invite
+                'username':
+                    u['email'], // Sementara tampilkan email sbg username
+                'isCurrentUser': false,
+                'isGuest': false,
+              },
+            )
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print("🔥 Error Search Users: $e");
+      return [];
+    }
+  }
+
+  // Fungsi Create Trip
   Future<bool> createTripWithMembers({
     required String name,
-    required String emoji, // ✅ Field baru sesuai DB refactor
+    required String? coverUrl,
     required String startDate,
     required String endDate,
     required List<Map<String, dynamic>> members,
   }) async {
-    
-    // 1. Ambil Token
     final token = await AuthService().getToken();
     if (token == null) return false;
 
     try {
-      // 2. CREATE TRIP HEADER
-      final tripResponse = await http.post(
-        Uri.parse('$baseUrl/trips'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          "name": name,
-          "emoji": emoji, // ✅ Kirim emoji ke backend
-          "description": "Trip created via App",
-          "currency_code": "IDR",
-          "start_date": startDate,
-          "end_date": endDate,
-        }),
-      );
+      print("🚀 Creating Trip: $name to $baseUrl");
+
+      // 1. CREATE TRIP
+      final tripResponse = await http
+          .post(
+            Uri.parse('$baseUrl/trips'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              "name": name,
+              "cover_url": coverUrl,
+              "description": "Trip to $name",
+              "currency_code": "IDR",
+              "start_date": startDate,
+              "end_date": endDate,
+            }),
+          )
+          .timeout(const Duration(seconds: 15)); // Timeout 15 detik
 
       if (tripResponse.statusCode != 201) {
-        print("Gagal buat trip: ${tripResponse.body}");
+        print("❌ Gagal Create Trip: ${tripResponse.body}");
         return false;
       }
 
-      final tripData = jsonDecode(tripResponse.body)['data']; // Sesuaikan struktur response
+      final tripData = jsonDecode(tripResponse.body)['data'];
       final int tripId = tripData['id'];
 
-      // 3. ADD MEMBERS (Looping)
-      // Filter: Jangan add diri sendiri, karena creator otomatis jadi admin
-      final membersToAdd = members.where((m) => m['isCurrentUser'] != true).toList();
+      // 2. ADD MEMBERS
+      final membersToAdd = members
+          .where((m) => m['isCurrentUser'] != true)
+          .toList();
 
       for (var member in membersToAdd) {
-        // Tentukan body request berdasarkan tipe member (User vs Guest)
-        Map<String, dynamic> memberBody;
-        
-        // Logika sederhana: Kalau punya field 'email' berarti User, kalau tidak berarti Guest
-        // (Pastikan UI create_trip_sheet kamu mengirim struktur data yang konsisten)
-        if (member.containsKey('email') && member['email'] != null && member['email'].toString().isNotEmpty) {
-          memberBody = {
-            "type": "user",
-            "email": member['email'],
-            "role": "member"
-          };
+        Map<String, dynamic> memberBody = {
+          "role": "member",
+          "type": (member['email'] != null) ? "user" : "guest",
+        };
+
+        if (memberBody["type"] == "user") {
+          memberBody["email"] = member['email'];
         } else {
-          memberBody = {
-            "type": "guest",
-            "guest_name": member['name'],
-            "guest_contact": null, // ✅ Nullable sesuai DB refactor
-            "role": "member"
-          };
+          memberBody["guest_name"] = member['name'];
+          // ✅ PERBAIKAN: Masukkan contact WA ke body request
+          memberBody["guest_contact"] = member['contact'];
         }
 
+        // Panggil API Add Member
         await http.post(
           Uri.parse('$baseUrl/trips/$tripId/members'),
           headers: {
@@ -79,11 +122,46 @@ class TripService {
         );
       }
 
+      print("✅ Trip Created Successfully!");
       return true;
-
     } catch (e) {
-      print("Error creating trip: $e");
+      print("🔥 Error Service: $e");
       return false;
+    }
+  }
+
+  // Fungsi Get Trips (FIXED)
+  Future<List<Map<String, dynamic>>> getTrips({int page = 1}) async {
+    final token = await AuthService().getToken();
+    if (token == null) return [];
+
+    try {
+      print("📡 Fetching Trips Page: $page");
+
+      final response = await http
+          .get(
+            Uri.parse(
+              '$baseUrl/trips?page=$page&per_page=10',
+            ), // Tambah per_page biar pasti
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Pastikan ambil dari data -> data (Laravel Default Pagination)
+        List<dynamic> tripsList = data['data']['data'];
+        return tripsList.map((trip) => trip as Map<String, dynamic>).toList();
+      } else {
+        print("❌ Gagal Fetch: ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      print("🔥 Error Fetch: $e");
+      rethrow; // Lempar error agar UI tahu
     }
   }
 }

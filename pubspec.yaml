@@ -40,6 +40,7 @@ dependencies:
   share_plus: ^12.0.1
   infinite_scroll_pagination: ^5.1.1
   intl: ^0.20.2
+  syncfusion_flutter_datepicker: ^32.1.20
 
 dev_dependencies:
   flutter_test:

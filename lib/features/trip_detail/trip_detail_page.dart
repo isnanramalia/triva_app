@@ -41,7 +41,7 @@ class _TripDetailPageState extends State<TripDetailPage>
   // };
 
   // Mock members
-  List<Map<String, dynamic>> _members = [
+  final List<Map<String, dynamic>> _members = [
     {'name': 'Neena', 'username': '@neena', 'isAdmin': true},
     {'name': 'Ahmad', 'username': '@ahmad', 'isAdmin': false},
     {'name': 'Budi', 'username': '@budi', 'isAdmin': false},
@@ -53,7 +53,7 @@ class _TripDetailPageState extends State<TripDetailPage>
   List<Map<String, dynamic>> _activities = [];
 
   // My Balance Data
-  List<Map<String, dynamic>> _myBalance = [
+  final List<Map<String, dynamic>> _myBalance = [
     {"description": "You owed Ahmad", "amount": 13000000, "status": "unpaid"},
     {
       "description": "Amanda owes You",

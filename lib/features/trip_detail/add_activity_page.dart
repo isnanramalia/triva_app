@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/emoji_picker_sheet.dart';
 
 // Helper Navigation (Full Page)
 void navigateToAddActivityPage(
@@ -50,14 +51,14 @@ class _AddActivityPageState extends State<AddActivityPage> with SingleTickerProv
   String _selectedEmoji = '🍽️';
   
   // Paid By Data
-  List<Map<String, dynamic>> _paidByList = [];
-  Map<String, TextEditingController> _paidByControllers = {};
+  final List<Map<String, dynamic>> _paidByList = [];
+  final Map<String, TextEditingController> _paidByControllers = {};
   
   // Split Data
   String _splitType = 'equally'; 
-  Map<String, double> _splitPortions = {}; 
+  final Map<String, double> _splitPortions = {}; 
   Map<String, double> _splitAmounts = {}; 
-  Map<String, TextEditingController> _splitControllers = {};
+  final Map<String, TextEditingController> _splitControllers = {};
 
   // Style Constants
   final double _fieldHeight = 44.0;
@@ -79,8 +80,12 @@ class _AddActivityPageState extends State<AddActivityPage> with SingleTickerProv
     _titleController.dispose();
     _amountController.dispose();
     _detailsController.dispose();
-    for (var c in _paidByControllers.values) c.dispose();
-    for (var c in _splitControllers.values) c.dispose();
+    for (var c in _paidByControllers.values) {
+      c.dispose();
+    }
+    for (var c in _splitControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -177,94 +182,14 @@ class _AddActivityPageState extends State<AddActivityPage> with SingleTickerProv
     Navigator.pop(context);
   }
 
-  // --- EMOJI PICKER SHEET (STATIS & LENGKAP) ---
   void _showEmojiPicker() {
-    // Daftar emoji lengkap
-    final List<String> emojis = [
-      // Makanan & Minuman
-      '🍽️', '🍕', '🍔', '🌭', '🥪', '🌮', '🌯', '🥙', '🍜', '🍲', '🍱', '🍛', '🍙', '🍚', '🍘', '🥟', 
-      '🍗', '🥩', '🥓', '🍖', '🥗', '🥗', '🥦', '🥬', '🥒', '🌽', '🥕', '🥔', '🥖', '🥐', '🍞', '🥯', 
-      '🥨', '🥞', '🧇', '🧀', '🥚', '🍳', '🧈', '🥞', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', 
-      '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', 
-      '☕', '🍵', '🧃', '🥤', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🍾',
-      
-      // Transportasi & Travel
-      '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🏍️', '🛵', '🚲', 
-      '🛴', '🚨', '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚝', '🚄', '🚅', '🚈', 
-      '🚂', '🚆', '🚇', '🚊', '🚉', '🚁', '🛩️', '✈️', '🛫', '🛬', '🚀', '🛸', '🛰️', '🛶', '⛵', '🛥️', 
-      '🚤', '⛴️', '🛳️', '🚢', '⚓', '⛽', '🚧', 'Vertical', '🚦', '🚥', '🚏', '🗺️', '🗿', '🗽', '🗼', 
-      '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', 'camping', 
-      '⛺', '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', 
-      '🏩', '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️',
-      
-      // Aktivitas & Objek
-      '⚽', '🏀', '🏈', '⚾', '🥎', 'Qt', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', 
-      '🏏', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', 
-      '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', 
-      '🧗', '🚵', '🚴', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', 'rosette', '🎗️', '🎫', '🎟️', '🎪', '🤹', 
-      '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🪕', '🎻', '🎲', '♟️', '🎯', 
-      '🎳', '🎮', '🎰', '🧩',
-      
-      // Simbol & Lainnya
-      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', 
-      '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', 
-      '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', 
-      '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', 
-      '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', 
-      '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', 
-      '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', 
-      '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', 
-      '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', 
-      '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '⏏️', '▶️', '⏸️', '⏯️', 
-      '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', 
-      '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', 
-      '➕', '➖', '➗', '✖️', '♾️', '💲', '💱', '™️', '©️', '®️', '👁️‍🗨️', '🔚', '🔙', '🔛', '🔝', '🔜', 
-      '〰️', '➰', '➿', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', 
-      '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', 
-      '🟩', '🟦', '🟪', '🟫', '⬛', '⬜', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '💬', '💭', 
-      '🗯️', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', 
-      '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Handle
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7, 
-                  mainAxisSpacing: 12, 
-                  crossAxisSpacing: 12
-                ),
-                itemCount: emojis.length,
-                itemBuilder: (context, index) => GestureDetector(
-                  onTap: () { 
-                    setState(() => _selectedEmoji = emojis[index]); 
-                    Navigator.pop(context); 
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)), 
-                    child: Center(child: Text(emojis[index], style: const TextStyle(fontSize: 28)))
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  showEmojiPickerSheet(
+    context, 
+    onSelected: (emoji) {
+      setState(() => _selectedEmoji = emoji);
+    }
+  );
+}
   // --- UI Components ---
 
   @override

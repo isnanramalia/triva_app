@@ -1,12 +1,12 @@
+import 'dart:async'; // Untuk Debounce
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/trip_service.dart'; // Pastikan import service
 
-/// Reusable Add Member Bottom Sheet
-/// Can be used in both Create Trip and Trip Detail
 class AddMemberSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onAddMember;
-  final List<String>? excludeNames; // Untuk exclude member yang sudah ada
-  
+  final List<String>? excludeNames;
+
   const AddMemberSheet({
     super.key,
     required this.onAddMember,
@@ -19,28 +19,23 @@ class AddMemberSheet extends StatefulWidget {
 
 class _AddMemberSheetState extends State<AddMemberSheet> {
   final _searchController = TextEditingController();
+
+  // Guest Controllers
   final _guestNameController = TextEditingController();
   final _guestContactController = TextEditingController();
+
   bool _isAddingGuest = false;
-  
-  // Mock data existing users
-  final List<Map<String, String>> _existingUsers = [
-    {'name': 'Isna', 'username': '@isna'},
-    {'name': 'Budi', 'username': '@budi'},
-    {'name': 'Siti', 'username': '@siti'},
-    {'name': 'Andi', 'username': '@andi'},
-    {'name': 'Ahmad', 'username': '@ahmad'},
-    {'name': 'Risa', 'username': '@risa'},
-    {'name': 'Amanda', 'username': '@amanda'},
-  ];
-  
-  List<Map<String, String>> _filteredUsers = [];
+  bool _isLoading = false;
+  Timer? _debounce; // Timer untuk delay search
+
+  // Data user hasil search API
+  List<Map<String, dynamic>> _userResults = [];
 
   @override
   void initState() {
     super.initState();
-    _filterUsers();
-    _searchController.addListener(_filterUsers);
+    // Load awal (kosong atau suggest user populer jika mau)
+    _searchUsers('');
   }
 
   @override
@@ -48,38 +43,56 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     _searchController.dispose();
     _guestNameController.dispose();
     _guestContactController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  void _filterUsers() {
-    setState(() {
-      var users = _existingUsers;
-      
-      // Exclude members that already exist
-      if (widget.excludeNames != null && widget.excludeNames!.isNotEmpty) {
-        users = users.where((user) {
-          return !widget.excludeNames!.any((name) => 
-            name.toLowerCase() == user['name']!.toLowerCase()
-          );
-        }).toList();
-      }
-      
-      // Filter by search query
-      if (_searchController.text.isEmpty) {
-        _filteredUsers = users;
-      } else {
-        _filteredUsers = users.where((user) {
-          return user['name']!
-              .toLowerCase()
-              .contains(_searchController.text.toLowerCase());
-        }).toList();
-      }
+  // ✅ LOGIC SEARCH USER KE API
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // Tunggu 500ms setelah user berhenti mengetik baru panggil API
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _searchUsers(query);
     });
   }
 
-  void _addExistingUser(Map<String, String> user) {
+  Future<void> _searchUsers(String query) async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Panggil Service
+      final users = await TripService().searchUsers(query);
+
+      if (mounted) {
+        setState(() {
+          // Filter user yang sudah ada di list trip (exclude)
+          if (widget.excludeNames != null && widget.excludeNames!.isNotEmpty) {
+            _userResults = users
+                .where(
+                  (u) => !widget.excludeNames!.any(
+                    (name) =>
+                        name.toLowerCase() ==
+                        u['name'].toString().toLowerCase(),
+                  ),
+                )
+                .toList();
+          } else {
+            _userResults = users;
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Add Registered User
+  void _addExistingUser(Map<String, dynamic> user) {
     widget.onAddMember({
-      'name': user['name']!,
+      'name': user['name'],
+      'email': user['email'], // Penting buat invite real user
       'username': user['username'],
       'isCurrentUser': false,
       'isGuest': false,
@@ -87,33 +100,49 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     Navigator.pop(context);
   }
 
+  // ✅ LOGIC ADD GUEST (VALIDASI WA)
   void _addGuest() {
-    if (_guestNameController.text.isNotEmpty) {
-      widget.onAddMember({
-        'name': _guestNameController.text.trim(),
-        'contact': _guestContactController.text.trim(),
-        'isCurrentUser': false,
-        'isGuest': true,
-      });
-      Navigator.pop(context);
+    final name = _guestNameController.text.trim();
+    final contact = _guestContactController.text.trim();
+
+    if (name.isEmpty) {
+      _showError('Guest name is required');
+      return;
     }
+
+    if (contact.isEmpty) {
+      _showError('WhatsApp number is required for recap');
+      return;
+    }
+
+    widget.onAddMember({
+      'name': name,
+      'contact': contact,
+      'isCurrentUser': false,
+      'isGuest': true, // Tandai sebagai guest
+    });
+    Navigator.pop(context);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
+      height: MediaQuery.of(context).size.height * 0.90,
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         top: false,
         child: Column(
           children: [
-            // Header
+            // HEADER
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(
@@ -136,7 +165,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(60, 40),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Cancel',
                           style: TextStyle(
                             color: AppColors.trivaBlue,
@@ -152,6 +181,8 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           color: AppColors.textPrimary,
                         ),
                       ),
+
+                      // Tombol Add khusus mode Guest
                       if (_isAddingGuest)
                         TextButton(
                           onPressed: _addGuest,
@@ -159,7 +190,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                             padding: EdgeInsets.zero,
                             minimumSize: const Size(60, 40),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Add',
                             style: TextStyle(
                               color: AppColors.trivaBlue,
@@ -169,15 +200,18 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           ),
                         )
                       else
-                        const SizedBox(width: 60),
+                        const SizedBox(width: 60), // Dummy spacing
                     ],
                   ),
                 ],
               ),
             ),
 
+            // CONTENT
             if (!_isAddingGuest) ...[
-              // Search bar
+              // 1. MODE CARI USER (MEMBER)
+
+              // Search Bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
@@ -187,15 +221,16 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                   ),
                   child: TextField(
                     controller: _searchController,
+                    onChanged: _onSearchChanged, // Panggil API saat ngetik
                     style: const TextStyle(fontSize: 17),
                     decoration: InputDecoration(
-                      hintText: 'Search friends...',
+                      hintText: 'Search by name or email...',
                       hintStyle: TextStyle(
-                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        color: AppColors.textSecondary.withOpacity(0.3),
                       ),
                       prefixIcon: Icon(
                         Icons.search,
-                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                        color: AppColors.textSecondary.withOpacity(0.5),
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
@@ -209,9 +244,11 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
 
               const SizedBox(height: 16),
 
-              // Existing users list
+              // List User Result
               Expanded(
-                child: _filteredUsers.isEmpty
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _userResults.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -219,14 +256,14 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                             Icon(
                               Icons.people_outline,
                               size: 48,
-                              color: AppColors.textSecondary.withValues(alpha: 0.3),
+                              color: AppColors.textSecondary.withOpacity(0.3),
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'No friends found',
+                              'No users found',
                               style: TextStyle(
                                 fontSize: 15,
-                                color: AppColors.textSecondary.withValues(alpha: 0.6),
+                                color: AppColors.textSecondary.withOpacity(0.6),
                               ),
                             ),
                           ],
@@ -234,9 +271,9 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredUsers.length,
+                        itemCount: _userResults.length,
                         itemBuilder: (context, index) {
-                          final user = _filteredUsers[index];
+                          final user = _userResults[index];
                           return InkWell(
                             onTap: () => _addExistingUser(user),
                             child: Container(
@@ -250,10 +287,11 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                                 children: [
                                   CircleAvatar(
                                     radius: 20,
-                                    backgroundColor: AppColors.trivaBlue.withValues(alpha: 0.1),
+                                    backgroundColor: AppColors.trivaBlue
+                                        .withOpacity(0.1),
                                     child: Text(
-                                      user['name']![0].toUpperCase(),
-                                      style: TextStyle(
+                                      (user['name'] as String)[0].toUpperCase(),
+                                      style: const TextStyle(
                                         color: AppColors.trivaBlue,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -262,10 +300,11 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          user['name']!,
+                                          user['name'],
                                           style: const TextStyle(
                                             fontSize: 17,
                                             fontWeight: FontWeight.w500,
@@ -273,16 +312,17 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                                           ),
                                         ),
                                         Text(
-                                          user['username']!,
+                                          user['email'] ?? '',
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: AppColors.textSecondary.withValues(alpha: 0.6),
+                                            color: AppColors.textSecondary
+                                                .withOpacity(0.6),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  Icon(
+                                  const Icon(
                                     Icons.add_circle_outline,
                                     color: AppColors.trivaBlue,
                                   ),
@@ -294,25 +334,21 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       ),
               ),
 
-              // Add Guest button
+              // Tombol Switch ke Guest
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isAddingGuest = true;
-                      });
-                    },
+                    onPressed: () => setState(() => _isAddingGuest = true),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: AppColors.trivaBlue),
+                      side: const BorderSide(color: AppColors.trivaBlue),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Add Guest (No Account)',
                       style: TextStyle(
                         fontSize: 17,
@@ -324,13 +360,14 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                 ),
               ),
             ] else ...[
-              // Guest form
+              // 2. MODE ADD GUEST (FORM)
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Guest Name
                       const Text(
                         'Guest Name',
                         style: TextStyle(
@@ -351,7 +388,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           decoration: InputDecoration(
                             hintText: 'Enter guest name',
                             hintStyle: TextStyle(
-                              color: AppColors.textSecondary.withValues(alpha: 0.3),
+                              color: AppColors.textSecondary.withOpacity(0.3),
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -361,9 +398,12 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 20),
+
+                      // Contact (WA)
                       const Text(
-                        'Contact (WhatsApp/Phone)',
+                        'WhatsApp Number',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -379,11 +419,11 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         child: TextField(
                           controller: _guestContactController,
                           style: const TextStyle(fontSize: 17),
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.phone, // Keyboard angka
                           decoration: InputDecoration(
-                            hintText: 'Enter phone number',
+                            hintText: 'e.g. 08123456789',
                             hintStyle: TextStyle(
-                              color: AppColors.textSecondary.withValues(alpha: 0.3),
+                              color: AppColors.textSecondary.withOpacity(0.3),
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -391,6 +431,16 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                               vertical: 12,
                             ),
                           ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+                      Text(
+                        '* Required for sending trip summary later.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary.withOpacity(0.6),
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ],
@@ -405,7 +455,6 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
   }
 }
 
-/// Helper function to show Add Member sheet
 void showAddMemberSheet(
   BuildContext context, {
   required Function(Map<String, dynamic>) onAddMember,
@@ -415,9 +464,7 @@ void showAddMemberSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (ctx) => AddMemberSheet(
-      onAddMember: onAddMember,
-      excludeNames: excludeNames,
-    ),
+    builder: (ctx) =>
+        AddMemberSheet(onAddMember: onAddMember, excludeNames: excludeNames),
   );
 }

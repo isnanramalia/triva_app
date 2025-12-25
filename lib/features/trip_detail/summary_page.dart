@@ -272,14 +272,14 @@ class _SummaryPageState extends State<SummaryPage> {
         onPressed: isMyObligation ? () => _togglePaymentStatus(index) : null,
         style: ButtonStyle(
           // Paksa warna text jadi Hijau di semua kondisi (termasuk disabled)
-          foregroundColor: MaterialStateProperty.all(Colors.green),
+          foregroundColor: WidgetStateProperty.all(Colors.green),
           // Paksa border jadi Hijau di semua kondisi
-          side: MaterialStateProperty.all(const BorderSide(color: Colors.green)),
+          side: WidgetStateProperty.all(const BorderSide(color: Colors.green)),
           // Styling lainnya
-          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 12, vertical: 0)),
-          minimumSize: MaterialStateProperty.all(const Size(0, 32)),
+          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 12, vertical: 0)),
+          minimumSize: WidgetStateProperty.all(const Size(0, 32)),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: MaterialStateProperty.all(
+          shape: WidgetStateProperty.all(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
