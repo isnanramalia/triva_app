@@ -22,12 +22,11 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
   @override
   void initState() {
     super.initState();
-    
-    // Mock data lengkap untuk activity detail
+    // Mock data
     _activityDetail = {
       "id": widget.activityId,
-      "title": widget.activityData['title'],
-      "emoji": widget.activityData['emoji'],
+      "title": widget.activityData['title'] ?? 'Activity',
+      "emoji": widget.activityData['emoji'] ?? '📝',
       "created_by": "Ahmad",
       "category": "Accommodation",
       "total_amount": 13000000,
@@ -46,12 +45,111 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
   }
 
   String _formatCurrency(num amount) {
-    final format = NumberFormat.currency(
+    return NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
-      decimalDigits: 0
+      decimalDigits: 0,
+    ).format(amount.abs()); // .abs() agar minus tidak double di UI
+  }
+
+  // --- WIDGET BUILDER HELPERS ---
+
+  // Helper untuk membuat Row info (Nama --- Harga)
+  Widget _buildListRow({
+    required String title,
+    required num amount,
+    required bool isLastItem,
+    bool showSign = false, // Untuk menampilkan + atau -
+  }) {
+    final isPositive = amount >= 0;
+    final color = showSign
+        ? (isPositive ? Colors.green : Colors.red)
+        : AppColors.textPrimary;
+
+    String textAmount = _formatCurrency(amount);
+    if (showSign) {
+      textAmount = (isPositive ? '+ ' : '- ') + textAmount;
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                textAmount,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!isLastItem)
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: AppColors.border.withOpacity(0.3),
+            indent: 16,
+            endIndent: 16,
+          ),
+      ],
     );
-    return format.format(amount);
+  }
+
+  // Helper untuk membuat Section kotak putih (Paid By & Settlement)
+  Widget _buildSection({
+    required String title,
+    required List<dynamic> items,
+    required bool isSettlement,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            // Opsional: Tambahkan border tipis agar konsisten dengan halaman lain
+            // border: Border.all(color: AppColors.border.withOpacity(0.5)),
+          ),
+          child: Column(
+            children: items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isLast = index == items.length - 1;
+
+              return _buildListRow(
+                title: item['name'],
+                amount: item['amount'],
+                isLastItem: isLast,
+                showSign: isSettlement, // Tampilkan +/- hanya jika settlement
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -61,90 +159,89 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- Header ---
+            // --- HEADER (REFACTORED: NO STACK) ---
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: SizedBox(
-                height: 40,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Kiri: Back Button
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.trivaBlue),
-                            const SizedBox(width: 4),
-                            Text('Details', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue, fontWeight: FontWeight.w400)),
-                          ],
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back Button
+                  TextButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.trivaBlue,
+                    ),
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    label: const Text(
+                      'Details',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+
+                  // Title
+                  const Text(
+                    'Activities',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+
+                  // Actions (Nav & Edit)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.chevron_left,
+                        color: AppColors.textSecondary.withOpacity(0.3),
+                        size: 28,
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: AppColors.textSecondary.withOpacity(0.3),
+                        size: 28,
+                      ),
+                      const SizedBox(width: 4),
+                      TextButton(
+                        onPressed: () {},
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.trivaBlue,
+                          minimumSize: const Size(40, 30),
+                        ),
+                        child: const Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
-                    ),
-
-                    // Tengah: Judul (Aman di tengah karena pakai Stack)
-                    const Text(
-                      'Activities',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    ),
-
-                    // Kanan: Navigasi < > dan Edit
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Tombol Panah (Previous/Next)
-                          // Gap didekatkan dengan width kecil di antara icon
-                          Icon(Icons.chevron_left, color: AppColors.textSecondary.withOpacity(0.3), size: 28),
-                          const SizedBox(width: 0), // Gap sangat kecil/nol karena padding icon bawaan sudah ada
-                          Icon(Icons.chevron_right, color: AppColors.textSecondary.withOpacity(0.3), size: 28),
-                          
-                          const SizedBox(width: 8), // Gap ke tombol Edit
-                          
-                          // Tombol Edit
-                          TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(40, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Agar area klik pas
-                            ),
-                            child: Text('Edit', style: TextStyle(fontSize: 17, color: AppColors.trivaBlue, fontWeight: FontWeight.w400)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
-            // --- Content ---
+            // --- CONTENT ---
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Activity Icon & Title
+                    // 1. Activity Icon & Title
                     Center(
                       child: Column(
                         children: [
-                          // Emoji (no background)
-                          SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: Center(
-                              child: Text(
-                                _activityDetail['emoji'],
-                                style: const TextStyle(fontSize: 60),
-                              ),
-                            ),
+                          Text(
+                            _activityDetail['emoji'],
+                            style: const TextStyle(fontSize: 60),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -161,7 +258,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontStyle: FontStyle.italic,
-                              color: AppColors.textSecondary.withValues(alpha: 0.7),
+                              color: AppColors.textSecondary.withOpacity(0.7),
                             ),
                           ),
                         ],
@@ -170,9 +267,12 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    // Category Badge & Total Amount
+                    // 2. Category Badge & Total Amount
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -181,14 +281,17 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE3F2FD),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               _activityDetail['category'],
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.trivaBlue,
@@ -209,132 +312,20 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    // Paid By Section
-                    const Text(
-                      'Paid By',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: List.generate(
-                          _activityDetail['paid_by'].length,
-                          (index) {
-                            final payer = _activityDetail['paid_by'][index];
-                            final isLast = index == _activityDetail['paid_by'].length - 1;
-                            
-                            return Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        payer['name'],
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        _formatCurrency(payer['amount']),
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!isLast)
-                                  Divider(
-                                    height: 1,
-                                    thickness: 0.5,
-                                    color: AppColors.border.withValues(alpha: 0.3),
-                                    indent: 16,
-                                    endIndent: 16,
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
+                    // 3. Paid By Section (Reusable)
+                    _buildSection(
+                      title: 'Paid By',
+                      items: _activityDetail['paid_by'],
+                      isSettlement: false,
                     ),
 
                     const SizedBox(height: 24),
 
-                    // Settlement Section
-                    const Text(
-                      'Settlement',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: List.generate(
-                          _activityDetail['settlement'].length,
-                          (index) {
-                            final member = _activityDetail['settlement'][index];
-                            final amount = member['amount'] as int;
-                            final isPositive = amount >= 0;
-                            final isLast = index == _activityDetail['settlement'].length - 1;
-                            
-                            return Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        member['name'],
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        (isPositive ? '+ ' : '- ') + _formatCurrency(amount.abs()),
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: isPositive ? Colors.green : Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!isLast)
-                                  Divider(
-                                    height: 1,
-                                    thickness: 0.5,
-                                    color: AppColors.border.withValues(alpha: 0.3),
-                                    indent: 16,
-                                    endIndent: 16,
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
+                    // 4. Settlement Section (Reusable)
+                    _buildSection(
+                      title: 'Settlement',
+                      items: _activityDetail['settlement'],
+                      isSettlement: true,
                     ),
 
                     const SizedBox(height: 32),
