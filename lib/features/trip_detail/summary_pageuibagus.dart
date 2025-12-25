@@ -316,7 +316,7 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // ✅ UI SETTLEMENT REVISI (List Style + Big Amount)
+  // ✅ UI SETTLEMENT BARU (Bridge Layout)
   Widget _buildSettlementList() {
     if (_settlementTransactions.isEmpty)
       return _buildEmptyState("All settled up!");
@@ -333,95 +333,181 @@ class _SummaryPageState extends State<SummaryPage> {
         final isMyObligation =
             _currentMemberId != null &&
             transaction['from_member_id'] == _currentMemberId;
+        final isReceiving =
+            _currentMemberId != null &&
+            transaction['to_member_id'] == _currentMemberId;
+
+        // Visual Style: Kalau ini urusan saya (bayar/terima), buat lebih terang. Kalau urusan orang lain, agak redup.
+        final double opacity = (isMyObligation || isReceiving) ? 1.0 : 0.6;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16), // Rounded lebih halus
-            // Border merah tipis kalau hutang saya & belum lunas
+            color: Colors.white.withOpacity(opacity == 1.0 ? 1 : 0.9),
+            borderRadius: BorderRadius.circular(16),
+            // Border merah tipis kalau saya harus bayar dan belum lunas
             border: (isMyObligation && !isPaid)
-                ? Border.all(color: Colors.red.withOpacity(0.1), width: 1)
+                ? Border.all(color: Colors.red.withOpacity(0.2), width: 1.5)
                 : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
             children: [
-              // 1. DETAIL KIRI (Who to Who + Big Amount)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // A. Who to Who (Small & Clean)
-                    Row(
+              // Row 1: Flow Visual (Avatar A -> Amount -> Avatar B)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // SENDER (KIRI)
+                  Expanded(
+                    flex: 2,
+                    child: Column(
                       children: [
-                        _buildSmallAvatar(fromName, Colors.red),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            isMyObligation ? 'You' : fromName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        _buildMediumAvatar(fromName, Colors.red, isPaid),
+                        const SizedBox(height: 8),
+                        Text(
+                          isMyObligation ? 'You' : fromName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: AppColors.textSecondary.withOpacity(0.3),
-                          ),
-                        ),
-                        _buildSmallAvatar(toName, Colors.green),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            toName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          'Sender',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
                           ),
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 8), // Jarak napas
-                    // B. BIG AMOUNT (Sesuai Request)
-                    Text(
-                      _formatCurrency(amount),
-                      style: TextStyle(
-                        fontSize: 18, // 🔥 Jauh lebih besar
-                        fontWeight: FontWeight.w600, // Lebih tebal
-                        // Kalau lunas jadi abu & coret, kalau belum lunas hitam tegas
-                        color: isPaid
-                            ? Colors.grey[400]
-                            : AppColors.textPrimary,
-                        decoration: isPaid ? TextDecoration.lineThrough : null,
-                        decorationColor: Colors.grey[400],
-                      ),
+                  // CONNECTION (TENGAH)
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        Text(
+                          _formatCurrency(amount),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: isPaid ? Colors.grey : AppColors.textPrimary,
+                            decoration: isPaid
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Expanded(child: Divider(color: Colors.grey[300])),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Icon(
+                                  isPaid
+                                      ? Icons.check_circle
+                                      : Icons.arrow_forward,
+                                  size: 16,
+                                  color: isPaid
+                                      ? Colors.green
+                                      : Colors.grey[400],
+                                ),
+                              ),
+                              Expanded(child: Divider(color: Colors.grey[300])),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  // RECEIVER (KANAN)
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        _buildMediumAvatar(toName, Colors.green, isPaid),
+                        const SizedBox(height: 8),
+                        Text(
+                          isReceiving ? 'You' : toName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Receiver',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
 
-              // 2. TOMBOL AKSI (KANAN)
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: _buildStatusWidget(isPaid, isMyObligation, transaction),
-              ),
+              // Row 2: Action Button (Jika belum lunas)
+              if (!isPaid) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: isMyObligation
+                      ? ElevatedButton(
+                          onPressed: () => _payDebt(transaction),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.trivaBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: const Text(
+                            'Mark as Paid',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      : Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Waiting for payment',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+              ],
             ],
           ),
         );
@@ -429,82 +515,22 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // Helper Widget: Tombol Status (Konsisten)
-  Widget _buildStatusWidget(
-    bool isPaid,
-    bool isMyObligation,
-    Map<String, dynamic> transaction,
-  ) {
-    if (isPaid) {
-      // Badge Paid
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Text(
-          'PAID',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
-        ),
-      );
-    } else if (isMyObligation) {
-      // Tombol Pay (Jika hutang saya)
-      return ElevatedButton(
-        onPressed: () => _payDebt(transaction),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.trivaBlue,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-          minimumSize: const Size(0, 36), // Tinggi tombol pas
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: const Text(
-          'Set as Paid',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      );
-    } else {
-      // Badge Unpaid (Jika hutang orang)
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'Not paid yet',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[500],
-          ),
-        ),
-      );
-    }
-  }
-
-  // Helper Avatar Kecil (Untuk baris nama)
-  Widget _buildSmallAvatar(String name, Color color) {
+  // Helper Avatar agak besar untuk Settlement Card
+  Widget _buildMediumAvatar(String name, Color color, bool isDimmed) {
     return Container(
-      width: 20,
-      height: 20,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: isDimmed ? Colors.grey[200] : color.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
       child: Center(
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : '?',
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: isDimmed ? Colors.grey : color,
           ),
         ),
       ),

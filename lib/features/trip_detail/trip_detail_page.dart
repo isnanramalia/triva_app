@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_colors.dart';
 import 'activity_detail_page.dart';
 import 'summary_page.dart';
@@ -35,9 +37,13 @@ class _TripDetailPageState extends State<TripDetailPage>
 
   // Expenses Calculation
   double _totalExpenses = 0;
+  double _myExpenses = 0; // ✅ Total pengeluaran pribadi
 
-  // Mock My Balance
-  final List<Map<String, dynamic>> _myBalance = [];
+  // Logic User Identity
+  int? _currentMemberId; // ✅ ID Member kita di trip ini
+
+  // Data Balance Real (Filtered untuk User Login)
+  List<Map<String, dynamic>> _myBalance = [];
 
   @override
   void initState() {
@@ -61,26 +67,165 @@ class _TripDetailPageState extends State<TripDetailPage>
   Future<void> _fetchTripData() async {
     setState(() => _isLoading = true);
 
-    final data = await TripService().getTripDetail(widget.tripId);
+    try {
+      final tripService = TripService();
+      final data = await tripService.getTripDetail(widget.tripId);
 
-    if (mounted) {
-      setState(() {
-        if (data != null) {
-          _tripData = data;
-          _members = data['members'] ?? [];
-          _activities = data['transactions'] ?? [];
+      // 1. Ambil Data User yang Login dari SharedPreferences untuk identifikasi diri
+      final prefs = await SharedPreferences.getInstance();
+      final userString = prefs.getString('user_data');
+      int? currentUserId;
 
-          _totalExpenses = _activities.fold(0.0, (sum, item) {
-            final amt = double.tryParse(item['total_amount'].toString()) ?? 0.0;
-            return sum + amt;
+      if (userString != null) {
+        final userJson = jsonDecode(userString);
+        currentUserId = userJson['id'];
+      }
+
+      if (mounted) {
+        setState(() {
+          if (data != null) {
+            _tripData = data;
+            _members = data['members'] ?? [];
+            _activities =
+                data['transactions'] ??
+                []; // Pastikan backend kirim transaksi lengkap
+
+            // 2. Cari Member ID Kita di Trip Ini
+            if (currentUserId != null) {
+              final myMemberData = _members.firstWhere(
+                (m) =>
+                    m['user_id'] == currentUserId ||
+                    (m['user'] != null && m['user']['id'] == currentUserId),
+                orElse: () => null,
+              );
+
+              if (myMemberData != null) {
+                _currentMemberId = myMemberData['id'];
+              }
+            }
+
+            // 3. Hitung Total Expenses (Global Trip)
+            _totalExpenses = _activities.fold(0.0, (sum, item) {
+              final amt =
+                  double.tryParse(item['total_amount'].toString()) ?? 0.0;
+              return sum + amt;
+            });
+
+            // 4. Hitung My Expenses (Personal)
+            _myExpenses = 0;
+            if (_currentMemberId != null) {
+              for (var activity in _activities) {
+                // Backend harus kirim 'splits' di dalam object transaction
+                if (activity['splits'] != null) {
+                  for (var split in activity['splits']) {
+                    if (split['member_id'] == _currentMemberId) {
+                      _myExpenses +=
+                          double.tryParse(split['amount'].toString()) ?? 0.0;
+                    }
+                  }
+                }
+              }
+            }
+
+            _tripData['total_expenses'] = _totalExpenses;
+            _tripData['activities_count'] = _activities.length;
+            _tripData['members_count'] = _members.length;
+          }
+        });
+
+        // 5. ✅ LOGIC BARU: Ambil My Balances dari API (Sudah dihitung backend)
+        if (_currentMemberId != null) {
+          final balances = await tripService.getMyBalances(widget.tripId);
+
+          setState(() {
+            _myBalance = balances.map((item) {
+              // Mapping response API ke format UI
+              // API Backend return: type = 'you_owe' (merah) atau 'owes_you' (hijau)
+              // UI Flutter expect: type = 'owe' (merah) atau 'receivable' (hijau)
+
+              final isOwe = item['type'] == 'you_owe';
+
+              return {
+                'type': isOwe ? 'owe' : 'receivable',
+                'name': item['name'],
+                'amount': double.tryParse(item['amount'].toString()) ?? 0.0,
+                'status': item['status'], // 'paid' atau 'unpaid'
+                'raw_data': item, // Simpan data asli untuk payload settlement
+              };
+            }).toList();
+
+            _isLoading = false;
           });
-
-          _tripData['total_expenses'] = _totalExpenses;
-          _tripData['activities_count'] = _activities.length;
-          _tripData['members_count'] = _members.length;
+        } else {
+          setState(() {
+            _myBalance = [];
+            _isLoading = false;
+          });
         }
-        _isLoading = false;
-      });
+      }
+    } catch (e) {
+      debugPrint("Error fetching trip data: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ Fungsi Bayar Hutang Langsung (Tombol Pay)
+  Future<void> _payDebt(Map<String, dynamic> transaction) async {
+    try {
+      // 1. Validasi Data Sebelum Kirim
+      final fromId = transaction['from_member_id'];
+      final toId = transaction['to_member_id'];
+
+      // Pastikan amount bersih dari karakter aneh
+      final rawAmount = transaction['amount'].toString().replaceAll(
+        RegExp(r'[^0-9.]'),
+        '',
+      );
+      final amount = double.tryParse(rawAmount) ?? 0.0;
+
+      if (fromId == null || toId == null) {
+        throw Exception("Invalid member ID");
+      }
+
+      // Tampilkan loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Processing...'),
+          duration: Duration(milliseconds: 500),
+        ),
+      );
+
+      // 2. Panggil Service
+      final success = await TripService().createSettlement(
+        widget.tripId,
+        int.parse(fromId.toString()), // Paksa ke int
+        int.parse(toId.toString()), // Paksa ke int
+        amount,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Marked as paid!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _fetchTripData();
+      } else {
+        throw Exception("Server returned failed status");
+      }
+    } catch (e) {
+      debugPrint("🔥 Error paying debt: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -531,18 +676,14 @@ class _TripDetailPageState extends State<TripDetailPage>
                             ? m['user']['name']
                             : m['guest_name'];
 
-                        return {
-                          'id': memberId, 
-                          'name': name.toString(),
-                        };
+                        return {'id': memberId, 'name': name.toString()};
                       })
                       .toList();
 
                   navigateToAddActivityPage(
                     context,
                     tripId: widget.tripId,
-                    members:
-                        memberForActivity,
+                    members: memberForActivity,
                     onActivityAdded: (activityData) {
                       _fetchTripData(); // Refresh setelah sukses
                     },
@@ -681,6 +822,7 @@ class _TripDetailPageState extends State<TripDetailPage>
     );
   }
 
+  // ✅ LOGIC BARU: EXPENSES TAB (PERSONAL DASHBOARD)
   Widget _buildExpensesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -692,7 +834,7 @@ class _TripDetailPageState extends State<TripDetailPage>
               Expanded(
                 child: _ExpenseSummaryCard(
                   title: 'My Expenses',
-                  amount: 0,
+                  amount: _myExpenses, // Value dari variabel state
                   formatCurrency: _formatCurrency,
                 ),
               ),
@@ -708,10 +850,16 @@ class _TripDetailPageState extends State<TripDetailPage>
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SummaryPage()),
-            ),
+            onTap: () async {
+              // ✅ Navigasi ke Summary & Refresh saat kembali
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SummaryPage(tripId: widget.tripId),
+                ),
+              );
+              _fetchTripData();
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
@@ -737,6 +885,8 @@ class _TripDetailPageState extends State<TripDetailPage>
             ),
           ),
           const SizedBox(height: 24),
+
+          // ✅ LIST PENDING BALANCES (DATA DARI API)
           if (_myBalance.isEmpty)
             Center(
               child: Padding(
@@ -757,7 +907,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                 ),
               ),
             )
-          else
+          else ...[
             const Text(
               'My Balance',
               style: TextStyle(
@@ -766,6 +916,153 @@ class _TripDetailPageState extends State<TripDetailPage>
                 color: AppColors.textPrimary,
               ),
             ),
+            const SizedBox(height: 12),
+
+            ..._myBalance.map((item) {
+              final isOwe = item['type'] == 'owe';
+              final isPaid = item['status'] == 'paid'; // ✅ Cek status dari API
+
+              // Jika Paid, warna jadi hijau/abu, jika belum lunas ikuti tipe hutang
+              final color = isPaid
+                  ? Colors.green
+                  : (isOwe ? Colors.red : Colors.green);
+
+              final label = isOwe ? "You owe" : "Owes you";
+              final displayAmount = isPaid
+                  ? "Paid" // Atau tampilkan angka 0
+                  : _formatCurrency(item['amount']);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  // Border merah hanya jika Saya Hutang & Belum Lunas
+                  border: (isOwe && !isPaid)
+                      ? Border.all(color: Colors.red.withOpacity(0.1))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    // Avatar Inisial
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: isPaid
+                            ? Icon(
+                                Icons.check,
+                                size: 20,
+                                color: color,
+                              ) // ✅ Icon Ceklis jika lunas
+                            : Text(
+                                item['name'][0].toUpperCase(),
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "$label ${item['name']}",
+                            style: TextStyle(
+                              fontSize:
+                                  13, // Sedikit dinaikkan biar enak dibaca
+                              color:
+                                  color, // Warna tetap dinamis (Merah/Hijau) sesuai status
+                              fontWeight: FontWeight
+                                  .normal, // Tidak ada yang bold, semua sama rata
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            displayAmount,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              decoration: isPaid ? TextDecoration.none : null,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // LOGIKA TOMBOL (Sisi Kanan)
+                    if (isPaid)
+                      // ✅ Tampilan Jika SUDAH LUNAS (Paid)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Paid',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else if (isOwe)
+                      // ✅ Tombol Pay (Hanya jika Saya Hutang & Belum Lunas)
+                      ElevatedButton(
+                        onPressed: () => _payDebt(item['raw_data']),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.trivaBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Set as Paid',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      )
+                    else
+                      // ✅ Label Unpaid (Jika Orang Hutang ke Saya)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Unpaid',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );

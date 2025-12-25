@@ -820,8 +820,10 @@ class _AddActivityPageState extends State<AddActivityPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Title',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text(
+            'Title',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -834,33 +836,39 @@ class _AddActivityPageState extends State<AddActivityPage>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(_borderRadius),
-                    border: Border.all(color: AppColors.border), // ✅ Tambahkan ini
+                    border: Border.all(
+                      color: AppColors.border,
+                    ), // ✅ Tambahkan ini
                   ),
                   child: Center(
-                    child: Text(_selectedEmoji,
-                        style: const TextStyle(fontSize: 24)),
+                    child: Text(
+                      _selectedEmoji,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              
+
               // Title Input
               Expanded(
                 child: TextField(
                   controller: _titleController,
                   style: const TextStyle(fontSize: 17),
                   // Ini sudah aman karena _getInputDecoration sudah kita perbaiki sebelumnya
-                  decoration: _getInputDecoration(hintText: 'E.g. Villa'), 
+                  decoration: _getInputDecoration(hintText: 'E.g. Villa'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          
-          const Text('Details',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+
+          const Text(
+            'Details',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
-          
+
           // Details Input
           TextField(
             controller: _detailsController,
@@ -871,9 +879,9 @@ class _AddActivityPageState extends State<AddActivityPage>
               contentPadding: const EdgeInsets.all(16),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Scan Receipt Button
           OutlinedButton(
             onPressed: () {},
@@ -882,35 +890,41 @@ class _AddActivityPageState extends State<AddActivityPage>
               side: const BorderSide(color: Color(0xFF9C27B0), width: 1.5),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_borderRadius)),
+                borderRadius: BorderRadius.circular(_borderRadius),
+              ),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.receipt_long, size: 20),
                 SizedBox(width: 8),
-                Text('Scan Receipt (optional)',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(
+                  'Scan Receipt (optional)',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // AI Placeholder
           Center(
             child: Column(
               children: [
-                Icon(Icons.auto_awesome,
-                    color: AppColors.trivaBlue.withOpacity(0.5), size: 32),
+                Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.trivaBlue.withOpacity(0.5),
+                  size: 32,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'AI Features Coming Soon! 🚀',
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.trivaBlue.withOpacity(0.8)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.trivaBlue.withOpacity(0.8),
+                  ),
                 ),
               ],
             ),

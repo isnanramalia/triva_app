@@ -170,13 +170,15 @@ class TripService {
     if (token == null) return null;
 
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/trips/$id'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/trips/$id'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -284,7 +286,12 @@ class TripService {
   }
 
   // ✅ BARU: Bayar Hutang (Set as Paid)
-  Future<bool> createSettlement(int tripId, int fromMemberId, int toMemberId, double amount) async {
+  Future<bool> createSettlement(
+    int tripId,
+    int fromMemberId,
+    int toMemberId,
+    double amount,
+  ) async {
     final token = await AuthService().getToken();
     if (token == null) return false;
 
@@ -311,6 +318,55 @@ class TripService {
     } catch (e) {
       print("🔥 Error Create Settlement: $e");
       return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyBalances(int tripId) async {
+    final token = await AuthService().getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/trips/$tripId/my-balances'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['data']);
+      }
+      return [];
+    } catch (e) {
+      print("🔥 Error Get MyBalances: $e");
+      return [];
+    }
+  }
+
+  // ✅ BARU: Get Trip Summary (Overview & Settlement Plan)
+  Future<Map<String, dynamic>?> getSummary(int tripId) async {
+    final token = await AuthService().getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/trips/$tripId/summary'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+      return null;
+    } catch (e) {
+      print("🔥 Error Get Summary: $e");
+      return null;
     }
   }
 }
