@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import 'dart:io';
 
 class TripService {
   // ⚠️ GANTI DENGAN IP LAPTOP KAMU SAAT INI (Cek ipconfig)
@@ -153,9 +154,9 @@ class TripService {
 
         // --- TAMBAHKAN KODE DEBUG INI ---
         if (tripsList.isNotEmpty) {
-           print("📦 SAMPLE TRIP DATA: ${tripsList.first}"); 
-           // Cek di debug console: adakah key 'total_spent'? 
-           // Atau mungkin namanya 'transactions_sum_total_amount'?
+          print("📦 SAMPLE TRIP DATA: ${tripsList.first}");
+          // Cek di debug console: adakah key 'total_spent'?
+          // Atau mungkin namanya 'transactions_sum_total_amount'?
         }
         // --------------------------------
 
@@ -397,6 +398,67 @@ class TripService {
     } catch (e) {
       print("🔥 Error Get Share Link: $e");
       return null;
+    }
+  }
+
+  Future<bool> updateTripCover(int tripId, File imageFile) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+          '$baseUrl/trips/$tripId/cover',
+        ), 
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+
+      // Attach file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image', 
+          imageFile.path,
+        ),
+      );
+
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final respStr = await response.stream.bytesToString();
+        print("Upload Failed: $respStr");
+        return false;
+      }
+    } catch (e) {
+      print("Error uploading cover: $e");
+      return false;
+    }
+  }
+
+  Future<bool> renameTrip(int tripId, String newName) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/trips/$tripId'),
+        headers: {
+          'Content-Type':
+              'application/json', 
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'name': newName}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error renaming trip: $e");
+      return false;
     }
   }
 }

@@ -8,6 +8,8 @@ import 'summary_page.dart';
 import '../../core/widgets/add_member_sheet.dart';
 import 'add_activity_page.dart';
 import '../../../core/services/trip_service.dart';
+import 'dart:io'; // Untuk File
+import 'package:image_picker/image_picker.dart';
 
 class TripDetailPage extends StatefulWidget {
   final int tripId;
@@ -45,6 +47,9 @@ class _TripDetailPageState extends State<TripDetailPage>
   // Data Balance Real (Filtered untuk User Login)
   List<Map<String, dynamic>> _myBalance = [];
 
+  bool _isUploadingCover = false;
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
@@ -64,14 +69,17 @@ class _TripDetailPageState extends State<TripDetailPage>
     _fetchTripData();
   }
 
-  Future<void> _fetchTripData() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchTripData({bool showLoading = true}) async {
+    // ✅ PERUBAHAN 1: Hanya set loading jika showLoading = true
+    if (showLoading) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       final tripService = TripService();
       final data = await tripService.getTripDetail(widget.tripId);
 
-      // 1. Ambil Data User yang Login dari SharedPreferences untuk identifikasi diri
+      // 1. Ambil Data User yang Login dari SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final userString = prefs.getString('user_data');
       int? currentUserId;
@@ -86,11 +94,9 @@ class _TripDetailPageState extends State<TripDetailPage>
           if (data != null) {
             _tripData = data;
             _members = data['members'] ?? [];
-            _activities =
-                data['transactions'] ??
-                []; // Pastikan backend kirim transaksi lengkap
+            _activities = data['transactions'] ?? [];
 
-            // 2. Cari Member ID Kita di Trip Ini
+            // 2. Cari Member ID Kita
             if (currentUserId != null) {
               final myMemberData = _members.firstWhere(
                 (m) =>
@@ -104,18 +110,17 @@ class _TripDetailPageState extends State<TripDetailPage>
               }
             }
 
-            // 3. Hitung Total Expenses (Global Trip)
+            // 3. Hitung Total Expenses
             _totalExpenses = _activities.fold(0.0, (sum, item) {
               final amt =
                   double.tryParse(item['total_amount'].toString()) ?? 0.0;
               return sum + amt;
             });
 
-            // 4. Hitung My Expenses (Personal)
+            // 4. Hitung My Expenses
             _myExpenses = 0;
             if (_currentMemberId != null) {
               for (var activity in _activities) {
-                // Backend harus kirim 'splits' di dalam object transaction
                 if (activity['splits'] != null) {
                   for (var split in activity['splits']) {
                     if (split['member_id'] == _currentMemberId) {
@@ -133,34 +138,34 @@ class _TripDetailPageState extends State<TripDetailPage>
           }
         });
 
-        // 5. ✅ LOGIC BARU: Ambil My Balances dari API (Sudah dihitung backend)
+        // 5. Logic My Balances
         if (_currentMemberId != null) {
           final balances = await tripService.getMyBalances(widget.tripId);
 
-          setState(() {
-            _myBalance = balances.map((item) {
-              // Mapping response API ke format UI
-              // API Backend return: type = 'you_owe' (merah) atau 'owes_you' (hijau)
-              // UI Flutter expect: type = 'owe' (merah) atau 'receivable' (hijau)
+          if (mounted) {
+            setState(() {
+              _myBalance = balances.map((item) {
+                final isOwe = item['type'] == 'you_owe';
+                return {
+                  'type': isOwe ? 'owe' : 'receivable',
+                  'name': item['name'],
+                  'amount': double.tryParse(item['amount'].toString()) ?? 0.0,
+                  'status': item['status'],
+                  'raw_data': item,
+                };
+              }).toList();
 
-              final isOwe = item['type'] == 'you_owe';
-
-              return {
-                'type': isOwe ? 'owe' : 'receivable',
-                'name': item['name'],
-                'amount': double.tryParse(item['amount'].toString()) ?? 0.0,
-                'status': item['status'], // 'paid' atau 'unpaid'
-                'raw_data': item, // Simpan data asli untuk payload settlement
-              };
-            }).toList();
-
-            _isLoading = false;
-          });
+              // ✅ Pastikan loading dimatikan setelah data siap
+              _isLoading = false;
+            });
+          }
         } else {
-          setState(() {
-            _myBalance = [];
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _myBalance = [];
+              _isLoading = false;
+            });
+          }
         }
       }
     } catch (e) {
@@ -440,6 +445,114 @@ class _TripDetailPageState extends State<TripDetailPage>
     return initials.toUpperCase();
   }
 
+  Future<void> _pickAndUploadCover() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800, // Kompres sedikit biar ringan
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() => _isUploadingCover = true);
+
+        File imageFile = File(pickedFile.path);
+
+        bool success = await TripService().updateTripCover(
+          widget.tripId,
+          imageFile,
+        );
+
+        if (success) {
+          await _fetchTripData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cover updated successfully!')),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to update cover')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingCover = false);
+      }
+    }
+  }
+
+  Future<void> _showRenameDialog() async {
+    final TextEditingController nameController = TextEditingController(
+      text: _tripData['name'] ?? widget.tripName,
+    );
+
+    final String? newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Trip'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true, // Keyboard muncul
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            labelText: 'Trip Name',
+            hintText: 'Enter new name',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (val) {
+            // Handle enter key
+            Navigator.pop(context, val.trim());
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, nameController.text.trim());
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty) {
+      final oldName = _tripData['name'];
+
+      setState(() {
+        _tripData['name'] = newName;
+      });
+
+      try {
+        bool success = await TripService().renameTrip(widget.tripId, newName);
+
+        if (!success) {
+          if (mounted) {
+            setState(() => _tripData['name'] = oldName);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to rename, connection error'),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _tripData['name'] = oldName);
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -510,7 +623,7 @@ class _TripDetailPageState extends State<TripDetailPage>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
                 width: double.infinity,
-                height: 220, // Tinggi banner
+                height: 220,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
@@ -529,7 +642,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                       // 1. IMAGE BACKGROUND
                       _buildCoverImage(),
 
-                      // 2. GRADIENT OVERLAY (Supaya teks terbaca)
+                      // 2. GRADIENT OVERLAY
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -537,14 +650,85 @@ class _TripDetailPageState extends State<TripDetailPage>
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.7), // Hitam di bawah
+                              Colors.black.withOpacity(0.7),
                             ],
                             stops: const [0.5, 1.0],
                           ),
                         ),
                       ),
 
-                      // 3. TEXT CONTENT (Positioned)
+                      // 3. TOMBOL EDIT (POSISI KANAN ATAS) - INI YANG TADI SALAH
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_isUploadingCover) return;
+
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                              ),
+                              builder: (context) => SafeArea(
+                                child: Wrap(
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(
+                                        Icons.image,
+                                        color: AppColors.trivaBlue,
+                                      ),
+                                      title: const Text('Change Cover Image'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _pickAndUploadCover();
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(
+                                        Icons.edit,
+                                        color: AppColors.trivaBlue,
+                                      ),
+                                      title: const Text('Rename Trip'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showRenameDialog();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                          // 👇 KEMARIN BAGIAN INI HILANG/TERTIMPA
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                            ),
+                            child: _isUploadingCover
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                          ),
+                        ),
+                      ),
+
+                      // 4. TEXT CONTENT (JUDUL & STATS)
                       Positioned(
                         bottom: 16,
                         left: 16,
@@ -556,9 +740,9 @@ class _TripDetailPageState extends State<TripDetailPage>
                             Text(
                               _tripData['name'] ?? 'Loading...',
                               style: const TextStyle(
-                                fontSize: 26, // Lebih besar
+                                fontSize: 26,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white, // Text Putih
+                                color: Colors.white,
                                 shadows: [
                                   Shadow(
                                     color: Colors.black26,
@@ -570,13 +754,13 @@ class _TripDetailPageState extends State<TripDetailPage>
                             ),
                             const SizedBox(height: 8),
 
-                            // Badge Stats (Member & Activities)
+                            // Badge Stats
                             Row(
                               children: [
                                 _buildStatBadge(
                                   Icons.people,
                                   '${_tripData['members_count'] ?? 0} Members',
-                                  isOverlay: true, // Style khusus overlay
+                                  isOverlay: true,
                                 ),
                                 const SizedBox(width: 8),
                                 _buildStatBadge(
@@ -594,7 +778,6 @@ class _TripDetailPageState extends State<TripDetailPage>
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
 
             // --- TAB BAR ---
@@ -858,7 +1041,8 @@ class _TripDetailPageState extends State<TripDetailPage>
                   builder: (_) => SummaryPage(
                     tripId: widget.tripId,
                     tripName: widget.tripName, // Pass nama
-                    members: _members, // ✅ Pass data member lengkap (ada guest_contact)
+                    members:
+                        _members, // ✅ Pass data member lengkap (ada guest_contact)
                   ),
                 ),
               );
