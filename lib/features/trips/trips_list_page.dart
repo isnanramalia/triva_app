@@ -405,7 +405,8 @@ class _TripCard extends StatelessWidget {
     final String? coverUrl = trip['cover_url'];
     final String name = trip['name'] ?? 'Trip';
     final int membersCount = trip['members_count'] ?? 1;
-    final num totalSpent = trip['total_spent'] ?? 0;
+    final dynamic rawTotal = trip['total_spent'];
+    final num totalSpent = num.tryParse(rawTotal?.toString() ?? '0') ?? 0;
 
     final dateText = _formatDateRange(trip['start_date'], trip['end_date']);
 

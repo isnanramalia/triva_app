@@ -130,7 +130,6 @@ class TripService {
     }
   }
 
-  // Fungsi Get Trips (FIXED)
   Future<List<Map<String, dynamic>>> getTrips({int page = 1}) async {
     final token = await AuthService().getToken();
     if (token == null) return [];
@@ -140,9 +139,7 @@ class TripService {
 
       final response = await http
           .get(
-            Uri.parse(
-              '$baseUrl/trips?page=$page&per_page=10',
-            ), // Tambah per_page biar pasti
+            Uri.parse('$baseUrl/trips?page=$page&per_page=10'),
             headers: {
               'Accept': 'application/json',
               'Authorization': 'Bearer $token',
@@ -152,8 +149,16 @@ class TripService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Pastikan ambil dari data -> data (Laravel Default Pagination)
         List<dynamic> tripsList = data['data']['data'];
+
+        // --- TAMBAHKAN KODE DEBUG INI ---
+        if (tripsList.isNotEmpty) {
+           print("📦 SAMPLE TRIP DATA: ${tripsList.first}"); 
+           // Cek di debug console: adakah key 'total_spent'? 
+           // Atau mungkin namanya 'transactions_sum_total_amount'?
+        }
+        // --------------------------------
+
         return tripsList.map((trip) => trip as Map<String, dynamic>).toList();
       } else {
         print("❌ Gagal Fetch: ${response.statusCode}");
@@ -161,7 +166,7 @@ class TripService {
       }
     } catch (e) {
       print("🔥 Error Fetch: $e");
-      rethrow; // Lempar error agar UI tahu
+      rethrow;
     }
   }
 
