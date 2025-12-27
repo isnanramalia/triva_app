@@ -495,31 +495,71 @@ class _TripDetailPageState extends State<TripDetailPage>
     final String? newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Rename Trip'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true, // Keyboard muncul
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            labelText: 'Trip Name',
-            hintText: 'Enter new name',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (val) {
-            // Handle enter key
-            Navigator.pop(context, val.trim());
-          },
+        content: Column(
+          mainAxisSize: MainAxisSize.min, 
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Trip Name',
+                hintText: 'Enter new name',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              onSubmitted: (val) {
+                Navigator.pop(context, val.trim());
+              },
+            ),
+          ],
         ),
+        //  LAYOUT TOMBOL BARU
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), 
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context, nameController.text.trim());
-            },
-            child: const Text('Save'),
+          Row(
+            children: [
+              // Tombol Cancel (Kiri)
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12), // Jarak antar tombol
+              // Tombol Save (Kanan)
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        AppColors.trivaBlue, //
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    // Cuma tutup dialog & bawa teks
+                    Navigator.pop(context, nameController.text.trim());
+                  },
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
