@@ -1,12 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
-
 import '../../../core/theme/app_colors.dart';
 import 'trip_created_sheet.dart';
 import '../../core/widgets/add_member_sheet.dart';
 import '../../../core/services/trip_service.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class CreateTripSheet extends StatefulWidget {
   final VoidCallback? onSuccess;
@@ -18,11 +18,10 @@ class CreateTripSheet extends StatefulWidget {
 }
 
 class _CreateTripSheetState extends State<CreateTripSheet> {
-  final _tripNameController = TextEditingController();
+  // ❌ Hapus _nameController yang tidak terpakai
+  // final _nameController = TextEditingController();
 
-  // State Cover Image
-  String _coverUrl =
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600';
+  final _tripNameController = TextEditingController();
 
   // State Tanggal Trip
   DateTime _startDate = DateTime.now();
@@ -34,26 +33,26 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
     {'name': 'You', 'isCurrentUser': true, 'isGuest': false},
   ];
 
-  final List<String> _randomCoverImages = [
+  // State Image
+  int _selectedCoverIndex = -1;
+  File? _pickedImageFile;
+
+  // ✅ CUKUP SATU KALI DEKLARASI DI SINI
+  final ImagePicker _picker = ImagePicker();
+
+  // List Gambar Pilihan Unsplash (Static)
+  final List<String> _coverImages = [
     'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
     'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600',
     'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=600',
     'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=600',
     'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=600',
-    'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600',
   ];
 
   @override
   void dispose() {
     _tripNameController.dispose();
     super.dispose();
-  }
-
-  void _randomizeCover() {
-    setState(() {
-      _coverUrl =
-          _randomCoverImages[Random().nextInt(_randomCoverImages.length)];
-    });
   }
 
   void _addParticipant(Map<String, dynamic> participant) {
@@ -159,30 +158,43 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
   }
 
   Future<void> _handleDone() async {
+    // 1. Validasi Nama
     final name = _tripNameController.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a trip name')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Tangkap tripId (sekarang return int?)
+      String? selectedUrl;
+
+      if (_pickedImageFile == null && _selectedCoverIndex >= 0) {
+        selectedUrl = _coverImages[_selectedCoverIndex];
+      }
+
+      final startDateStr = DateFormat('yyyy-MM-dd').format(_startDate);
+      final endDateStr = DateFormat('yyyy-MM-dd').format(_endDate);
+
       final tripId = await TripService().createTripWithMembers(
         name: name,
-        coverUrl: _coverUrl,
-        startDate: _startDate.toIso8601String(),
-        endDate: _endDate.toIso8601String(),
+        startDate: startDateStr,
+        endDate: endDateStr,
         members: _participants,
+        coverFile: _pickedImageFile, 
+        coverUrl: selectedUrl, 
       );
 
       if (mounted) setState(() => _isLoading = false);
 
-      // ✅ Cek jika tripId tidak null (sukses)
       if (tripId != null) {
         widget.onSuccess?.call();
         if (!mounted) return;
-        Navigator.pop(context); // Tutup form create
+        Navigator.pop(context);
 
-        // ✅ Panggil Sheet Sukses dengan tripId
         showTripCreatedSheet(
           context,
           tripId: tripId,
@@ -193,16 +205,32 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create trip. Please try again.'),
-          ),
+          const SnackBar(content: Text('Failed to create trip. Try again.')),
         );
       }
     } catch (e) {
+      print(e);
       if (mounted) setState(() => _isLoading = false);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // Kompres sedikit
+      );
+      if (picked != null) {
+        setState(() {
+          _pickedImageFile = File(picked.path);
+          _selectedCoverIndex = -1;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
     }
   }
 
@@ -302,70 +330,102 @@ class _CreateTripSheetState extends State<CreateTripSheet> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
-                    GestureDetector(
-                      onTap: _randomizeCover,
-                      child: Container(
-                        height: 160,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          image: DecorationImage(
-                            image: NetworkImage(_coverUrl),
-                            fit: BoxFit.cover,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              bottom: 12,
-                              right: 12,
+                    SizedBox(
+                      height: 80,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount:
+                            _coverImages.length + 1, // +1 untuk tombol upload
+                        itemBuilder: (context, index) {
+                          // ITEM 0: TOMBOL UPLOAD / HASIL UPLOAD
+                          if (index == 0) {
+                            bool isFileSelected = _selectedCoverIndex == -1;
+                            return GestureDetector(
+                              onTap: _pickImage,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
+                                width: 80,
+                                margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isFileSelected
+                                        ? AppColors.trivaBlue
+                                        : Colors.grey[300]!,
+                                    width: isFileSelected ? 2 : 1,
+                                  ),
                                 ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.shuffle,
-                                      size: 16,
-                                      color: AppColors.trivaBlue,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Random',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.trivaBlue,
+                                child:
+                                    _pickedImageFile != null && isFileSelected
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.file(
+                                          _pickedImageFile!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: isFileSelected
+                                                ? AppColors.trivaBlue
+                                                : Colors.grey,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            "Upload",
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isFileSelected
+                                                  ? AppColors.trivaBlue
+                                                  : Colors.grey,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
+                              ),
+                            );
+                          }
+
+                          // ITEM 1 dst: GAMBAR UNSPLASH
+                          final unsplashIndex = index - 1;
+                          bool isSelected =
+                              _selectedCoverIndex == unsplashIndex;
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCoverIndex = unsplashIndex;
+                                _pickedImageFile = null; // Reset file upload
+                              });
+                            },
+                            child: Container(
+                              width: 80,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.trivaBlue
+                                      : Colors.transparent,
+                                  width: 2, // Highlight kalau dipilih
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  _coverImages[unsplashIndex],
+                                  fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
 

@@ -51,82 +51,57 @@ class TripService {
     }
   }
 
-  // Fungsi Create Trip
   Future<int?> createTripWithMembers({
     required String name,
-    required String? coverUrl,
     required String startDate,
     required String endDate,
     required List<Map<String, dynamic>> members,
+    File? coverFile,
+    String? coverUrl,
   }) async {
     final token = await AuthService().getToken();
     if (token == null) return null;
 
     try {
-      print("🚀 Creating Trip: $name to $baseUrl");
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/trips'));
 
-      // 1. CREATE TRIP
-      final tripResponse = await http
-          .post(
-            Uri.parse('$baseUrl/trips'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              "name": name,
-              "cover_url": coverUrl,
-              "description": "Trip to $name",
-              "currency_code": "IDR",
-              "start_date": startDate,
-              "end_date": endDate,
-            }),
-          )
-          .timeout(const Duration(seconds: 15)); // Timeout 15 detik
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
 
-      if (tripResponse.statusCode != 201) {
-        print("❌ Gagal Create Trip: ${tripResponse.body}");
+      request.fields['name'] = name;
+      request.fields['start_date'] = startDate;
+      request.fields['end_date'] = endDate;
+
+      request.fields['members'] = jsonEncode(members);
+
+      if (coverFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('cover_image', coverFile.path),
+        );
+      } else if (coverUrl != null) {
+        request.fields['cover_url'] = coverUrl;
+      }
+
+      print("📤 Sending Trip Request: ${request.fields}");
+      if (coverFile != null) print("📤 With File: ${coverFile.path}");
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print("📥 Response Status: ${response.statusCode}");
+      print("📥 Response Body: ${response.body}");
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data['data']['id']; // Kembalikan ID Trip baru
+      } else {
+        print("Create Trip Failed: ${response.body}");
         return null;
       }
-
-      final tripData = jsonDecode(tripResponse.body)['data'];
-      final int tripId = tripData['id'];
-
-      // 2. ADD MEMBERS
-      final membersToAdd = members
-          .where((m) => m['isCurrentUser'] != true)
-          .toList();
-
-      for (var member in membersToAdd) {
-        Map<String, dynamic> memberBody = {
-          "role": "member",
-          "type": (member['email'] != null) ? "user" : "guest",
-        };
-
-        if (memberBody["type"] == "user") {
-          memberBody["email"] = member['email'];
-        } else {
-          memberBody["guest_name"] = member['name'];
-          // ✅ PERBAIKAN: Masukkan contact WA ke body request
-          memberBody["guest_contact"] = member['contact'];
-        }
-
-        // Panggil API Add Member
-        await http.post(
-          Uri.parse('$baseUrl/trips/$tripId/members'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(memberBody),
-        );
-      }
-
-      print("✅ Trip Created Successfully!");
-      return tripId;
     } catch (e) {
-      print("🔥 Error Service: $e");
+      print("Error creating trip: $e");
       return null;
     }
   }
@@ -152,13 +127,9 @@ class TripService {
         final data = jsonDecode(response.body);
         List<dynamic> tripsList = data['data']['data'];
 
-        // --- TAMBAHKAN KODE DEBUG INI ---
         if (tripsList.isNotEmpty) {
           print("📦 SAMPLE TRIP DATA: ${tripsList.first}");
-          // Cek di debug console: adakah key 'total_spent'?
-          // Atau mungkin namanya 'transactions_sum_total_amount'?
         }
-        // --------------------------------
 
         return tripsList.map((trip) => trip as Map<String, dynamic>).toList();
       } else {
@@ -408,9 +379,7 @@ class TripService {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse(
-          '$baseUrl/trips/$tripId/cover',
-        ), 
+        Uri.parse('$baseUrl/trips/$tripId/cover'),
       );
 
       request.headers['Authorization'] = 'Bearer $token';
@@ -418,10 +387,7 @@ class TripService {
 
       // Attach file
       request.files.add(
-        await http.MultipartFile.fromPath(
-          'image', 
-          imageFile.path,
-        ),
+        await http.MultipartFile.fromPath('image', imageFile.path),
       );
 
       var response = await request.send();
@@ -447,8 +413,7 @@ class TripService {
       final response = await http.patch(
         Uri.parse('$baseUrl/trips/$tripId'),
         headers: {
-          'Content-Type':
-              'application/json', 
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
