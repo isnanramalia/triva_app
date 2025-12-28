@@ -449,4 +449,32 @@ class TripService {
       return null;
     }
   }
+
+  // ✅ BARU: Update Transaction
+Future<bool> updateTransaction(int tripId, int transactionId, Map<String, dynamic> data) async {
+  final token = await AuthService().getToken();
+  if (token == null) return false;
+
+  try {
+    final response = await http.put( // Gunakan PUT untuk update
+      Uri.parse('$baseUrl/trips/$tripId/transactions/$transactionId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      print("❌ Gagal Update Transaction: ${response.body}");
+      return false;
+    }
+  } catch (e) {
+    print("🔥 Error Update Transaction Service: $e");
+    return false;
+  }
+}
 }

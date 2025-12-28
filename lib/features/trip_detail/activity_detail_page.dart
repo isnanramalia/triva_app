@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/trip_service.dart';
+import 'edit_activity_page.dart';
 
 class ActivityDetailPage extends StatefulWidget {
-  final int activityId;
-  final Map<String, dynamic> activityData;
+  final List<dynamic> activities;
+  final int initialIndex;
+  final List<dynamic> members;
+  final int tripId;
 
   const ActivityDetailPage({
     super.key,
-    required this.activityId,
-    required this.activityData,
+    required this.activities,
+    required this.initialIndex,
+    required this.members,
+    required this.tripId,
   });
 
   @override
@@ -18,6 +23,7 @@ class ActivityDetailPage extends StatefulWidget {
 }
 
 class _ActivityDetailPageState extends State<ActivityDetailPage> {
+  late int _currentIndex;
   Map<String, dynamic>? _activityDetail;
   bool _isLoading = true;
   String? _errorMessage;
@@ -25,7 +31,27 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _fetchDetail();
+  }
+
+  // --- NAVIGATION LOGIC ---
+
+  bool get _hasPrev => _currentIndex > 0;
+  bool get _hasNext => _currentIndex < widget.activities.length - 1;
+
+  void _goNext() {
+    if (_hasNext) {
+      setState(() => _currentIndex++);
+      _fetchDetail();
+    }
+  }
+
+  void _goPrev() {
+    if (_hasPrev) {
+      setState(() => _currentIndex--);
+      _fetchDetail();
+    }
   }
 
   Future<void> _fetchDetail() async {
@@ -35,19 +61,11 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
     });
 
     try {
-      final int? tripId = widget.activityData['trip_id'];
-      if (tripId == null) {
-        setState(() {
-          _errorMessage = "Trip context missing.";
-          _isLoading = false;
-        });
-        return;
-      }
+      final activity = widget.activities[_currentIndex];
+      final int tripId = activity['trip_id'];
+      final int activityId = activity['id'];
 
-      final data = await TripService().getTransactionDetail(
-        tripId,
-        widget.activityId,
-      );
+      final data = await TripService().getTransactionDetail(tripId, activityId);
 
       if (mounted) {
         if (data != null) {
@@ -71,6 +89,8 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       }
     }
   }
+
+  // --- UI HELPERS ---
 
   String _formatCurrency(num amount) {
     return NumberFormat.currency(
@@ -126,34 +146,56 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // PREVIOUS BUTTON
             IconButton(
-              onPressed: () {}, // Next Logic
-              icon: const Icon(
+              onPressed: _hasPrev ? _goPrev : null,
+              icon: Icon(
                 Icons.chevron_left,
-                color: AppColors.trivaBlue,
-                size: 28,
+                color: _hasPrev
+                    ? AppColors.trivaBlue
+                    : AppColors.trivaBlue.withOpacity(0.2),
+                size: 32,
               ),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
+            // NEXT BUTTON
             IconButton(
-              onPressed: () {}, // Prev Logic
-              icon: const Icon(
+              onPressed: _hasNext ? _goNext : null,
+              icon: Icon(
                 Icons.chevron_right,
-                color: AppColors.trivaBlue,
-                size: 28,
+                color: _hasNext
+                    ? AppColors.trivaBlue
+                    : AppColors.trivaBlue.withOpacity(0.2),
+                size: 32,
               ),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
             const SizedBox(width: 4),
+            // EDIT BUTTON
             TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+              onPressed: _activityDetail == null
+                  ? null
+                  : () async {
+                      // ✅ Navigasi ke halaman edit (Pastikan sudah import EditActivityPage)
+                      final bool? updated = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (context) => EditActivityPage(
+                            activity: _activityDetail!,
+                            members: widget
+                                .members, // ✅ Sekarang kita punya data member yang benar
+                            tripId: widget.tripId,
+                          ),
+                        ),
+                      );
+
+                      if (updated == true) {
+                        _fetchDetail(); // Refresh data detail setelah edit sukses
+                      }
+                    },
               child: const Text(
                 'Edit',
                 style: TextStyle(color: AppColors.trivaBlue, fontSize: 17),
@@ -183,10 +225,11 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         children: [
-          // --- NEW COMPACT HERO SECTION ---
+          // 1. Hero Header Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            // ✅ Padding vertikal dikurangi dari 32 ke 20
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -199,67 +242,74 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
               ],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min, // Biar container menyesuaikan isi
               children: [
+                // 1. Emoji (Ukuran dikecilkan sedikit dari 48 ke 36)
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
                     color: AppColors.surface,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     activity['emoji'] ?? '📝',
-                    style: const TextStyle(fontSize: 48),
+                    style: const TextStyle(fontSize: 36),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                // 2. Judul
                 Text(
                   activity['title'] ?? 'Activity',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 20, // Turun sedikit dari 22
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+
+                // 3. Tanggal
                 Text(
                   dateStr,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
+
+                // 4. Divider (Padding dikurangi drastis dari 20 ke 12)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(indent: 40, endIndent: 40, thickness: 0.5),
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(indent: 60, endIndent: 60, thickness: 0.5),
                 ),
+
+                // 5. Total Amount Section
                 const Text(
                   "TOTAL AMOUNT",
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textSecondary,
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   _formatCurrency(
                     double.tryParse(activity['total_amount'].toString()) ?? 0,
                   ),
                   style: const TextStyle(
-                    fontSize: 32,
+                    fontSize: 28, // Dari 32 ke 28 agar lebih proporsional
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
-                    letterSpacing: -1,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 32),
 
-          // --- DETAILS SECTIONS ---
           _buildSectionHeader("PAID BY"),
           _buildDetailBox(items: _getPaidByList()),
 
@@ -277,7 +327,6 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
               fontStyle: FontStyle.italic,
             ),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );

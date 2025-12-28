@@ -75,7 +75,9 @@ class _TripDetailPageState extends State<TripDetailPage>
   // ✅ TAMBAHKAN FUNGSI INI
   Future<void> _loadCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final userString = prefs.getString('user_data'); // Sesuai dengan AuthController
+    final userString = prefs.getString(
+      'user_data',
+    ); // Sesuai dengan AuthController
     if (userString != null) {
       final user = jsonDecode(userString);
       setState(() {
@@ -513,7 +515,7 @@ class _TripDetailPageState extends State<TripDetailPage>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Rename Trip'),
         content: Column(
-          mainAxisSize: MainAxisSize.min, 
+          mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
@@ -557,8 +559,7 @@ class _TripDetailPageState extends State<TripDetailPage>
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        AppColors.trivaBlue, //
+                    backgroundColor: AppColors.trivaBlue, //
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1044,16 +1045,19 @@ class _TripDetailPageState extends State<TripDetailPage>
         return _ActivityCard(
           activity: activity,
           formatCurrency: _formatCurrency,
+          // Ganti blok onTap kamu dengan ini:
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => ActivityDetailPage(
-                  activityId: activity['id'],
-                  activityData: activity,
+                  activities: _activities,
+                  initialIndex: index,
+                  members: _members,
+                  tripId: widget.tripId,
                 ),
               ),
-            );
+            ).then((_) => _fetchTripData(showLoading: false));
           },
         );
       },
@@ -1096,8 +1100,7 @@ class _TripDetailPageState extends State<TripDetailPage>
                   builder: (_) => SummaryPage(
                     tripId: widget.tripId,
                     tripName: widget.tripName, // Pass nama
-                    members:
-                        _members, 
+                    members: _members,
                     currentUserId: _currentUserId,
                     tripOwnerId: _tripData['owner_id'],
                   ),
