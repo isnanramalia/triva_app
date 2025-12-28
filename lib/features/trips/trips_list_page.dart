@@ -280,9 +280,48 @@ class _TripActionsSheet extends StatelessWidget {
               emoji: '🔗',
               title: 'Join an existing group trip',
               subtitle: 'Use an invite link from your friend.',
-              onTap: () {
-                Navigator.pop(context);
-                showJoinTripSheet(context);
+
+              onTap: () async {
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                navigator.pop(); 
+
+                final result = await showJoinTripSheet(context);
+
+                if (result != null && result is Map<String, dynamic>) {
+                  if (result.containsKey('error')) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(result['error']),
+                        backgroundColor: Colors.redAccent,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return; 
+                  }
+
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text("Berhasil bergabung ke ${result['name']}!"),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+
+                  // Navigasi ke detail
+                  navigator.push(
+                    MaterialPageRoute(
+                      builder: (context) => TripDetailPage(
+                        tripId: result['id'],
+                        tripName: result['name'],
+                        coverUrl: result['cover_url'],
+                      ),
+                    ),
+                  );
+
+                  onTripCreated?.call();
+                }
               },
             ),
           ],

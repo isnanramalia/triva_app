@@ -451,30 +451,64 @@ class TripService {
   }
 
   // ✅ BARU: Update Transaction
-Future<bool> updateTransaction(int tripId, int transactionId, Map<String, dynamic> data) async {
-  final token = await AuthService().getToken();
-  if (token == null) return false;
+  Future<bool> updateTransaction(
+    int tripId,
+    int transactionId,
+    Map<String, dynamic> data,
+  ) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
 
-  try {
-    final response = await http.put( // Gunakan PUT untuk update
-      Uri.parse('$baseUrl/trips/$tripId/transactions/$transactionId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(data),
-    );
+    try {
+      final response = await http.put(
+        // Gunakan PUT untuk update
+        Uri.parse('$baseUrl/trips/$tripId/transactions/$transactionId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
 
-    if (response.statusCode == 200) {
-      return true;
-    } else {
-      print("❌ Gagal Update Transaction: ${response.body}");
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print("❌ Gagal Update Transaction: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("🔥 Error Update Transaction Service: $e");
       return false;
     }
-  } catch (e) {
-    print("🔥 Error Update Transaction Service: $e");
-    return false;
   }
-}
+
+  Future<Map<String, dynamic>?> joinTrip(String token) async {
+    final tokenAuth = await AuthService().getToken();
+    if (tokenAuth == null) return null;
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          '$baseUrl/trips/join',
+        ), 
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $tokenAuth',
+        },
+        body: jsonEncode({'token': token}),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return data['data']; 
+      } else {
+        throw Exception(data['message'] ?? 'Failed to join trip');
+      }
+    } catch (e) {
+      print("Error joining trip: $e");
+      throw e;
+    }
+  }
 }
