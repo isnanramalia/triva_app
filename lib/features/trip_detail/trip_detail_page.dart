@@ -31,6 +31,7 @@ class _TripDetailPageState extends State<TripDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = true;
+  int? _currentUserId;
 
   // Data Trip Real
   Map<String, dynamic> _tripData = {};
@@ -66,7 +67,21 @@ class _TripDetailPageState extends State<TripDetailPage>
       "total_expenses": 0,
     };
 
+    _loadCurrentUser();
+
     _fetchTripData();
+  }
+
+  // ✅ TAMBAHKAN FUNGSI INI
+  Future<void> _loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user_data'); // Sesuai dengan AuthController
+    if (userString != null) {
+      final user = jsonDecode(userString);
+      setState(() {
+        _currentUserId = user['id'];
+      });
+    }
   }
 
   Future<void> _fetchTripData({bool showLoading = true}) async {
@@ -1082,7 +1097,9 @@ class _TripDetailPageState extends State<TripDetailPage>
                     tripId: widget.tripId,
                     tripName: widget.tripName, // Pass nama
                     members:
-                        _members, // ✅ Pass data member lengkap (ada guest_contact)
+                        _members, 
+                    currentUserId: _currentUserId,
+                    tripOwnerId: _tripData['owner_id'],
                   ),
                 ),
               );

@@ -8,12 +8,16 @@ class SummaryPage extends StatefulWidget {
   final int tripId;
   final String tripName;
   final List<dynamic> members;
+  final int? currentUserId;
+  final int? tripOwnerId;
 
   const SummaryPage({
     super.key,
     required this.tripId,
     required this.tripName,
     required this.members,
+    this.currentUserId,
+    this.tripOwnerId,
   });
 
   @override
@@ -71,14 +75,20 @@ class _SummaryPageState extends State<SummaryPage> {
   }
 
   Future<void> _payDebt(Map<String, dynamic> transaction) async {
+    print("📦 DATA TRANSAKSI: $transaction");
+
     try {
       final fromId = transaction['from_member_id'];
       final toId = transaction['to_member_id'];
-      final rawAmount = transaction['amount'].toString().replaceAll(
-        RegExp(r'[^0-9.]'),
-        '',
-      );
-      final amount = double.tryParse(rawAmount) ?? 0.0;
+      final amount = double.tryParse(transaction['amount'].toString()) ?? 0.0;
+      print("💰 Paying Amount: $amount (From: $fromId To: $toId)");
+      if (fromId == null || toId == null) {
+        // Jika ini muncul, cek log "DATA TRANSAKSI" di atas, pasti key-nya hilang
+        throw Exception("Invalid member ID. Data: $transaction");
+      }
+      if (amount <= 0.01) {
+        throw Exception("Invalid amount: $amount");
+      }
 
       if (fromId == null || toId == null) throw Exception("Invalid ID");
 
@@ -344,8 +354,9 @@ class _SummaryPageState extends State<SummaryPage> {
 
   // ✅ UI SETTLEMENT (Horizontal List + BIG AMOUNT)
   Widget _buildSettlementList() {
-    if (_settlementTransactions.isEmpty)
+    if (_settlementTransactions.isEmpty) {
       return _buildEmptyState("All settled up!");
+    }
 
     return Column(
       children: List.generate(_settlementTransactions.length, (index) {
@@ -354,11 +365,20 @@ class _SummaryPageState extends State<SummaryPage> {
         final toName = transaction['to_name'] ?? 'Unknown';
         final amount = double.tryParse(transaction['amount'].toString()) ?? 0.0;
         final status = transaction['status'];
+        final isPaid =
+            status == 'paid'; // Sesuaikan status backend ('paid'/'confirmed')
 
-        final isPaid = status == 'paid';
-        final isMyObligation =
+        // ✅ PERBAIKAN 1: Samakan nama variabel jadi 'isMyObligation'
+        final bool isMyObligation =
             _currentMemberId != null &&
             transaction['from_member_id'] == _currentMemberId;
+
+        final bool isAdmin =
+            widget.currentUserId != null &&
+            widget.currentUserId == widget.tripOwnerId;
+
+        // Logic tombol muncul
+        final bool canMarkPaid = isMyObligation || isAdmin;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -380,12 +400,10 @@ class _SummaryPageState extends State<SummaryPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // KIRI: Detail Transfer
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar & Nama (Kecil)
                     Row(
                       children: [
                         _buildSmallAvatar(fromName, Colors.red),
@@ -393,9 +411,12 @@ class _SummaryPageState extends State<SummaryPage> {
                         Flexible(
                           child: Text(
                             isMyObligation ? 'You' : fromName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: isMyObligation
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isMyObligation ? Colors.red : Colors.black,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -405,7 +426,7 @@ class _SummaryPageState extends State<SummaryPage> {
                           child: Icon(
                             Icons.arrow_forward_rounded,
                             size: 14,
-                            color: AppColors.textSecondary.withOpacity(0.3),
+                            color: Colors.grey,
                           ),
                         ),
                         _buildSmallAvatar(toName, Colors.green),
@@ -422,30 +443,24 @@ class _SummaryPageState extends State<SummaryPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 8),
-
-                    // NOMINAL BESAR (BIG AMOUNT)
                     Text(
                       _formatCurrency(amount),
                       style: TextStyle(
-                        fontSize: 20, // ✅ Besar (Bold look)
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: isPaid
                             ? Colors.grey[400]
                             : AppColors.textPrimary,
                         decoration: isPaid ? TextDecoration.lineThrough : null,
-                        decorationColor: Colors.grey[400],
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // KANAN: Tombol / Badge
               Padding(
                 padding: const EdgeInsets.only(left: 12),
-                child: _buildStatusWidget(isPaid, isMyObligation, transaction),
+                child: _buildStatusWidget(isPaid, canMarkPaid, transaction),
               ),
             ],
           ),
@@ -467,7 +482,7 @@ class _SummaryPageState extends State<SummaryPage> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Text(
-          'PAID',
+          'Paid',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,

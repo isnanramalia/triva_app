@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import 'dart:io';
+import '../config/api_config.dart';
 
 class TripService {
-  // ⚠️ GANTI DENGAN IP LAPTOP KAMU SAAT INI (Cek ipconfig)
-  final String baseUrl = 'http://192.168.1.5:8000/api';
+  final String baseUrl = ApiConfig.baseUrl;
 
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     final token = await AuthService().getToken();
@@ -262,7 +262,7 @@ class TripService {
     }
   }
 
-  // ✅ BARU: Bayar Hutang (Set as Paid)
+  // Tambahkan function ini di dalam class TripService
   Future<bool> createSettlement(
     int tripId,
     int fromMemberId,
@@ -277,6 +277,7 @@ class TripService {
         Uri.parse('$baseUrl/trips/$tripId/settlements'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
@@ -286,14 +287,9 @@ class TripService {
         }),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return true;
-      } else {
-        print("❌ Gagal Settlement: ${response.body}");
-        return false;
-      }
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("🔥 Error Create Settlement: $e");
+      print("Error creating settlement: $e");
       return false;
     }
   }
