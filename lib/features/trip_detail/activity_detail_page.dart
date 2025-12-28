@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/trip_service.dart';
 
 class ActivityDetailPage extends StatefulWidget {
   final int activityId;
@@ -17,31 +18,58 @@ class ActivityDetailPage extends StatefulWidget {
 }
 
 class _ActivityDetailPageState extends State<ActivityDetailPage> {
-  late Map<String, dynamic> _activityDetail;
+  Map<String, dynamic>? _activityDetail;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // Mock data
-    _activityDetail = {
-      "id": widget.activityId,
-      "title": widget.activityData['title'] ?? 'Activity',
-      "emoji": widget.activityData['emoji'] ?? '📝',
-      "created_by": "Ahmad",
-      "category": "Accommodation",
-      "total_amount": 13000000,
-      "paid_by": [
-        {"name": "Ahmad", "amount": 7000000},
-        {"name": "Budi", "amount": 6000000},
-      ],
-      "settlement": [
-        {"name": "Neena", "amount": -2600000},
-        {"name": "Ahmad", "amount": 4400000},
-        {"name": "Budi", "amount": 3400000},
-        {"name": "Amanda", "amount": -2600000},
-        {"name": "Risa", "amount": -2600000},
-      ],
-    };
+    _fetchDetail();
+  }
+
+  Future<void> _fetchDetail() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final int? tripId = widget.activityData['trip_id'];
+      if (tripId == null) {
+        setState(() {
+          _errorMessage = "Trip context missing.";
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final data = await TripService().getTransactionDetail(
+        tripId,
+        widget.activityId,
+      );
+
+      if (mounted) {
+        if (data != null) {
+          setState(() {
+            _activityDetail = data;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = "Activity not found.";
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Connection error.";
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   String _formatCurrency(num amount) {
@@ -49,293 +77,331 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
-    ).format(amount.abs()); // .abs() agar minus tidak double di UI
-  }
-
-  // --- WIDGET BUILDER HELPERS ---
-
-  // Helper untuk membuat Row info (Nama --- Harga)
-  Widget _buildListRow({
-    required String title,
-    required num amount,
-    required bool isLastItem,
-    bool showSign = false, // Untuk menampilkan + atau -
-  }) {
-    final isPositive = amount >= 0;
-    final color = showSign
-        ? (isPositive ? Colors.green : Colors.red)
-        : AppColors.textPrimary;
-
-    String textAmount = _formatCurrency(amount);
-    if (showSign) {
-      textAmount = (isPositive ? '+ ' : '- ') + textAmount;
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                textAmount,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isLastItem)
-          Divider(
-            height: 1,
-            thickness: 0.5,
-            color: AppColors.border.withOpacity(0.3),
-            indent: 16,
-            endIndent: 16,
-          ),
-      ],
-    );
-  }
-
-  // Helper untuk membuat Section kotak putih (Paid By & Settlement)
-  Widget _buildSection({
-    required String title,
-    required List<dynamic> items,
-    required bool isSettlement,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            // Opsional: Tambahkan border tipis agar konsisten dengan halaman lain
-            // border: Border.all(color: AppColors.border.withOpacity(0.5)),
-          ),
-          child: Column(
-            children: items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final isLast = index == items.length - 1;
-
-              return _buildListRow(
-                title: item['name'],
-                amount: item['amount'],
-                isLastItem: isLast,
-                showSign: isSettlement, // Tampilkan +/- hanya jika settlement
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
+    ).format(amount.abs());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: Column(
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      title: const Text(
+        'Activities',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      leadingWidth: 100,
+      leading: GestureDetector(
+        onTap: () => Navigator.pop(context),
+        behavior: HitTestBehavior.opaque,
+        child: const Row(
           children: [
-            // --- HEADER (REFACTORED: NO STACK) ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back Button
-                  TextButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.trivaBlue,
-                    ),
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                    label: const Text(
-                      'Details',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-
-                  // Title
-                  const Text(
-                    'Activities',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-
-                  // Actions (Nav & Edit)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.chevron_left,
-                        color: AppColors.textSecondary.withOpacity(0.3),
-                        size: 28,
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: AppColors.textSecondary.withOpacity(0.3),
-                        size: 28,
-                      ),
-                      const SizedBox(width: 4),
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.trivaBlue,
-                          minimumSize: const Size(40, 30),
-                        ),
-                        child: const Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            SizedBox(width: 8),
+            Icon(
+              Icons.arrow_back_ios_new,
+              size: 20,
+              color: AppColors.trivaBlue,
             ),
-
-            // --- CONTENT ---
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Activity Icon & Title
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            _activityDetail['emoji'],
-                            style: const TextStyle(fontSize: 60),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _activityDetail['title'],
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Created by ${_activityDetail['created_by']}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontStyle: FontStyle.italic,
-                              color: AppColors.textSecondary.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 2. Category Badge & Total Amount
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE3F2FD),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _activityDetail['category'],
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.trivaBlue,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            _formatCurrency(_activityDetail['total_amount']),
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 3. Paid By Section (Reusable)
-                    _buildSection(
-                      title: 'Paid By',
-                      items: _activityDetail['paid_by'],
-                      isSettlement: false,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 4. Settlement Section (Reusable)
-                    _buildSection(
-                      title: 'Settlement',
-                      items: _activityDetail['settlement'],
-                      isSettlement: true,
-                    ),
-
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
+            Text(
+              ' Details',
+              style: TextStyle(color: AppColors.trivaBlue, fontSize: 17),
             ),
           ],
         ),
       ),
+      actions: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () {}, // Next Logic
+              icon: const Icon(
+                Icons.chevron_left,
+                color: AppColors.trivaBlue,
+                size: 28,
+              ),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              onPressed: () {}, // Prev Logic
+              icon: const Icon(
+                Icons.chevron_right,
+                color: AppColors.trivaBlue,
+                size: 28,
+              ),
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Edit',
+                style: TextStyle(color: AppColors.trivaBlue, fontSize: 17),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ],
     );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading)
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (_errorMessage != null) return _buildErrorState();
+
+    final activity = _activityDetail!;
+    final dateStr = activity['date'] != null
+        ? DateFormat(
+            'EEEE, d MMMM yyyy',
+          ).format(DateTime.parse(activity['date']))
+        : 'Unknown Date';
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        children: [
+          // --- NEW COMPACT HERO SECTION ---
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    activity['emoji'] ?? '📝',
+                    style: const TextStyle(fontSize: 48),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  activity['title'] ?? 'Activity',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dateStr,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Divider(indent: 40, endIndent: 40, thickness: 0.5),
+                ),
+                const Text(
+                  "TOTAL AMOUNT",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatCurrency(
+                    double.tryParse(activity['total_amount'].toString()) ?? 0,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // --- DETAILS SECTIONS ---
+          _buildSectionHeader("PAID BY"),
+          _buildDetailBox(items: _getPaidByList()),
+
+          const SizedBox(height: 24),
+
+          _buildSectionHeader("SPLIT DETAILS"),
+          _buildDetailBox(items: _getSplitsList(), isSplit: true),
+
+          const SizedBox(height: 40),
+          Text(
+            "Created by ${activity['created_by']?['user']?['name'] ?? 'System'}",
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // Helper Methods
+  Widget _buildSectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8, bottom: 8),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailBox({
+    required List<Map<String, dynamic>> items,
+    bool isSplit = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+      ),
+      child: Column(
+        children: List.generate(items.length, (index) {
+          final item = items[index];
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      item['name'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      (isSplit ? "- " : "") + _formatCurrency(item['amount']),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isSplit
+                            ? Colors.red.shade700
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index != items.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  color: AppColors.border.withOpacity(0.3),
+                  indent: 16,
+                  endIndent: 16,
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Something went wrong",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            TextButton(onPressed: _fetchDetail, child: const Text("Retry")),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getPaidByList() {
+    if (_activityDetail == null || _activityDetail!['paid_by'] == null)
+      return [];
+    final paidBy = _activityDetail!['paid_by'];
+    return [
+      {
+        "name": paidBy['user']?['name'] ?? paidBy['guest_name'] ?? 'Guest',
+        "amount":
+            double.tryParse(_activityDetail!['total_amount'].toString()) ?? 0.0,
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> _getSplitsList() {
+    if (_activityDetail == null || _activityDetail!['splits'] == null)
+      return [];
+    return (_activityDetail!['splits'] as List).map((split) {
+      final member = split['member'];
+      return {
+        "name": member?['user']?['name'] ?? member?['guest_name'] ?? 'Guest',
+        "amount": double.tryParse(split['amount'].toString()) ?? 0.0,
+      };
+    }).toList();
   }
 }

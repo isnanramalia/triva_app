@@ -422,4 +422,31 @@ class TripService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> getTransactionDetail(
+    int tripId,
+    int transactionId,
+  ) async {
+    final token = await AuthService().getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/trips/$tripId/transactions/$transactionId'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching transaction detail: $e");
+      return null;
+    }
+  }
 }
