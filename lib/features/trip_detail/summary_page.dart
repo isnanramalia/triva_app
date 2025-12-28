@@ -28,6 +28,8 @@ class _SummaryPageState extends State<SummaryPage> {
   bool _isLoading = true;
   int? _currentMemberId;
 
+  Map<String, dynamic> _tripData = {};
+
   List<dynamic> _overviewData = [];
   List<dynamic> _settlementTransactions = [];
 
@@ -44,6 +46,7 @@ class _SummaryPageState extends State<SummaryPage> {
 
       if (mounted && data != null) {
         setState(() {
+          _tripData = data;
           _overviewData = data['overview'] ?? [];
           _settlementTransactions = data['settlements'] ?? [];
 
@@ -262,12 +265,32 @@ class _SummaryPageState extends State<SummaryPage> {
   }
 
   Widget _buildOverviewList() {
-    if (_overviewData.isEmpty) return _buildEmptyState("No balance data yet.");
+    // 1. Cek kondisi Overview Kosong
+    if (_overviewData.isEmpty) {
+      // Ambil flag dari backend (Default false jika null)
+      bool hasTransactions = _tripData['has_transactions'] ?? false;
 
+      if (hasTransactions) {
+        // KONDISI A: Ada transaksi, tapi overview kosong = LUNAS! 🎉
+        return _buildAllSettledState();
+      } else {
+        // KONDISI B: Belum ada transaksi sama sekali
+        return _buildEmptyState("No expenses added yet.");
+      }
+    }
+
+    // 2. Jika ada data Overview (Normal), tampilkan list
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: List.generate(_overviewData.length, (index) {
@@ -322,18 +345,15 @@ class _SummaryPageState extends State<SummaryPage> {
                         ),
                       ],
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          (isPositive ? '+ ' : '- ') + _formatCurrency(amount),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: isPositive ? Colors.green : Colors.red,
-                          ),
-                        ),
-                      ],
+                    // Menampilkan Amount dengan format mata uang
+                    Text(
+                      (isPositive ? '+ ' : '- ') +
+                          _formatCurrency(amount.abs()),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
                     ),
                   ],
                 ),
@@ -348,6 +368,48 @@ class _SummaryPageState extends State<SummaryPage> {
             ],
           );
         }),
+      ),
+    );
+  }
+
+  // 👇 Widget Baru untuk Tampilan "Lunas"
+  Widget _buildAllSettledState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 30),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 50,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "All Settled Up!",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "No one owes anything right now.",
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withOpacity(0.8),
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
       ),
     );
   }
@@ -484,7 +546,7 @@ class _SummaryPageState extends State<SummaryPage> {
         child: const Text(
           'Paid',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.bold,
             color: Colors.green,
           ),
@@ -503,22 +565,22 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
         child: const Text(
           'Set as Paid',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
         ),
       );
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: AppColors.trivaYellow.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           'Not paid yet',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Colors.grey[500],
+            color: AppColors.trivaYellow,
           ),
         ),
       );
