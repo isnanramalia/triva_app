@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:intl/intl.dart';
+import 'package:triva_app/features/profile/profile_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../trip_detail/trip_detail_page.dart';
 import 'join_trip_sheet.dart';
@@ -56,98 +57,82 @@ class _TripsListPageState extends State<TripsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 1.5,
+        shadowColor: Colors.black.withOpacity(0.4),
+        surfaceTintColor: AppColors.background,
+        centerTitle: false,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Image.asset(
+            'lib/assets/images/logo_triva.png',
+            height: 32,
+            errorBuilder: (c, e, s) => const Text(
+              'Triva',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.trivaBlue,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              ),
+              icon: const Icon(
+                Icons.face_5_rounded,
+                size: 25,
+                color: AppColors.trivaBlue,
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showTripActionsSheet(context),
-        shape: const CircleBorder(),
+        // Shape "Squircle" (kotak sangat bulat) lebih gemas dibanding bulat total
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         backgroundColor: AppColors.trivaBlue,
-        child: const Icon(Icons.add, color: Colors.white),
+        elevation: 4,
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header Logo
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Image.asset(
-                  'lib/assets/images/logo_triva.png',
-                  height: 32,
-                  errorBuilder: (c, e, s) => const Text(
-                    'Triva',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.trivaBlue,
-                    ),
-                  ),
+      body: RefreshIndicator(
+        onRefresh: () async => _pagingController.refresh(),
+        color: AppColors.trivaBlue,
+        child: PagingListener(
+          controller: _pagingController,
+          builder: (context, state, fetchNextPage) {
+            return PagedListView<int, Map<String, dynamic>>(
+              state: state,
+              fetchNextPage: fetchNextPage,
+              padding: const EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                100,
+              ), // Spasi bawah biar lega
+              builderDelegate: PagedChildBuilderDelegate<Map<String, dynamic>>(
+                itemBuilder: (context, item, index) =>
+                    _TripCard(trip: item, formatCurrency: _formatCurrency),
+                noItemsFoundIndicatorBuilder: (_) => _buildEmptyState(),
+                firstPageProgressIndicatorBuilder: (_) => const Center(
+                  child: CircularProgressIndicator(strokeWidth: 3),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // List Content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async => _pagingController.refresh(),
-                child: PagingListener(
-                  controller: _pagingController,
-                  builder: (context, state, fetchNextPage) {
-                    return PagedListView<int, Map<String, dynamic>>(
-                      state: state,
-                      fetchNextPage: fetchNextPage,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                      builderDelegate:
-                          PagedChildBuilderDelegate<Map<String, dynamic>>(
-                            itemBuilder: (context, item, index) => _TripCard(
-                              trip: item,
-                              formatCurrency: _formatCurrency,
-                            ),
-                            // Loading Indicators
-                            firstPageProgressIndicatorBuilder: (_) =>
-                                const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                            newPageProgressIndicatorBuilder: (_) =>
-                                const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                ),
-                            noItemsFoundIndicatorBuilder: (_) =>
-                                _buildEmptyState(),
-                            firstPageErrorIndicatorBuilder: (_) =>
-                                _buildErrorState(),
-                            newPageErrorIndicatorBuilder: (_) => Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Center(
-                                child: IconButton(
-                                  onPressed: fetchNextPage,
-                                  icon: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
-
   // --- UI WIDGETS ---
 
   Widget _buildEmptyState() {
@@ -285,7 +270,7 @@ class _TripActionsSheet extends StatelessWidget {
                 final navigator = Navigator.of(context);
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-                navigator.pop(); 
+                navigator.pop();
 
                 final result = await showJoinTripSheet(context);
 
@@ -298,7 +283,7 @@ class _TripActionsSheet extends StatelessWidget {
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
-                    return; 
+                    return;
                   }
 
                   scaffoldMessenger.showSnackBar(
