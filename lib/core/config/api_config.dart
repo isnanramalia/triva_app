@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  static const String _localIp = '192.168.11.109';
+  static const String _localIp = '192.168.1.16';
 
   // Port local
   static const String _port = '8000';

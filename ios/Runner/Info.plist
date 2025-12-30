@@ -50,5 +50,9 @@
 		<string>whatsapp</string>
 		<string>https</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Izinkan akses mikrofon untuk mencatat pengeluaran via suara.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Izinkan pengenalan suara untuk mengubah ucapan menjadi teks transaksi.</string>
 </dict>
 </plist>
