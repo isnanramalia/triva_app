@@ -43,12 +43,20 @@ class _AddActivityPageState extends State<AddActivityPage>
   late TabController _tabController;
 
   bool _isSubmitting = false;
+
+  // Key untuk mengakses fungsi submit() di dalam child widgets
   final GlobalKey _manualTabKey = GlobalKey();
+  final GlobalKey<AiAddTabState> _aiTabKey = GlobalKey<AiAddTabState>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Listener ini penting agar tombol bawah berubah teksnya saat geser tab
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -60,9 +68,9 @@ class _AddActivityPageState extends State<AddActivityPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.white, // Sesuaikan dengan design
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.white,
         elevation: 0,
         leadingWidth: 80,
         leading: TextButton(
@@ -88,7 +96,7 @@ class _AddActivityPageState extends State<AddActivityPage>
       ),
       body: Column(
         children: [
-          // TAB SWITCHER (UI TETAP)
+          // TAB SWITCHER
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             height: 40,
@@ -129,30 +137,51 @@ class _AddActivityPageState extends State<AddActivityPage>
             child: TabBarView(
               controller: _tabController,
               children: [
+                // TAB 1: MANUAL (Pasang key disini!)
                 ManualAddTab(
-                  key: _manualTabKey,
+                  key:
+                      _manualTabKey, // PENTING: Agar parent bisa panggil submit()
                   tripId: widget.tripId,
                   members: widget.members,
                   onActivityAdded: widget.onActivityAdded,
                   onSubmitting: (v) => setState(() => _isSubmitting = v),
                 ),
-                const AiAddTab(),
+
+                // TAB 2: AI (Pasang key disini!)
+                AiAddTab(
+                  key: _aiTabKey, // PENTING: Agar parent bisa panggil submit()
+                  tripId: widget.tripId,
+                  members: widget.members,
+                  onProcessingChanged: (val) =>
+                      setState(() => _isSubmitting = val),
+                ),
               ],
             ),
           ),
         ],
       ),
+
+      // BOTTOM BUTTON (Single Source of Truth)
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton(
-            onPressed: _tabController.index == 0 && !_isSubmitting
-                ? () => (_manualTabKey.currentState as dynamic)?.submit()
-                : null,
+            // LOGIC PINTAR: Cek tab mana yang aktif
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    if (_tabController.index == 0) {
+                      // Kalau di Tab Manual, panggil fungsi submit milik ManualAddTab
+                      // Pastikan ManualAddTabState punya method submit() yang public
+                      (_manualTabKey.currentState as dynamic)?.submit();
+                    } else {
+                      // Kalau di Tab AI, panggil fungsi submit milik AiAddTab
+                      _aiTabKey.currentState?.submit();
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.trivaBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -160,16 +189,29 @@ class _AddActivityPageState extends State<AddActivityPage>
             ),
             child: _isSubmitting
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
+                    width: 24,
+                    height: 24,
                     child: CircularProgressIndicator(
                       color: Colors.white,
                       strokeWidth: 2,
                     ),
                   )
-                : const Text(
-                    'Add',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                // TEXT BERUBAH SESUAI TAB
+                : AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _tabController.index == 0
+                          ? 'Save Expenses'
+                          : 'Scan & Analyze 🪄',
+                      key: ValueKey(
+                        _tabController.index,
+                      ), // Biar ada animasi ganti text
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
           ),
         ),

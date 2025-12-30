@@ -280,7 +280,7 @@ class _TripActionsSheet extends StatelessWidget {
                       SnackBar(
                         content: Text(result['error']),
                         backgroundColor: Colors.redAccent,
-                        behavior: SnackBarBehavior.floating,
+                        behavior: SnackBarBehavior.fixed,
                       ),
                     );
                     return;
@@ -290,7 +290,7 @@ class _TripActionsSheet extends StatelessWidget {
                     SnackBar(
                       content: Text("Berhasil bergabung ke ${result['name']}!"),
                       backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
+                      behavior: SnackBarBehavior.fixed,
                     ),
                   );
 

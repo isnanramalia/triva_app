@@ -489,9 +489,7 @@ class TripService {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          '$baseUrl/trips/join',
-        ), 
+        Uri.parse('$baseUrl/trips/join'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -502,13 +500,123 @@ class TripService {
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return data['data']; 
+        return data['data'];
       } else {
         throw Exception(data['message'] ?? 'Failed to join trip');
       }
     } catch (e) {
       print("Error joining trip: $e");
       throw e;
+    }
+  }
+
+  // ==========================================
+  // AI & SMART SCAN FEATURES
+  // ==========================================
+
+  /// 1. Mengirim Gambar/Teks ke Backend -> diteruskan ke n8n
+  Future<Map<String, dynamic>> prepareAi({
+    required int tripId,
+    File? image,
+    String? query,
+  }) async {
+    final token = await AuthService().getToken();
+    if (token == null) throw Exception("User not logged in");
+
+    try {
+      final uri = Uri.parse('$baseUrl/trips/$tripId/transactions/prepare-ai');
+
+      var request = http.MultipartRequest('POST', uri);
+
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+      // LOGIC GAMBAR OPSIONAL (Sudah Benar)
+      if (image != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', image.path),
+        );
+      }
+
+      // LOGIC TEKS OPSIONAL (Sudah Benar)
+      if (query != null && query.isNotEmpty) {
+        request.fields['query'] = query;
+      }
+
+      print("🚀 Sending AI Request: Image=${image != null}, Query=$query");
+
+      // --- PERBAIKAN: TAMBAHKAN TIMEOUT 60 DETIK ---
+      // AI butuh waktu mikir, jangan sampai putus duluan
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception(
+            "Koneksi timeout. AI butuh waktu lebih lama dari biasanya.",
+          );
+        },
+      );
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print("🤖 AI Response [${response.statusCode}]: ${response.body}");
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        // Coba parse error message dari backend
+        try {
+          final errorBody = jsonDecode(response.body);
+          throw Exception(errorBody['message'] ?? "AI Processing Failed");
+        } catch (_) {
+          // Kalau response bukan JSON (misal HTML error 500)
+          throw Exception(
+            "Server Error (${response.statusCode}): ${response.body}",
+          );
+        }
+      }
+    } catch (e) {
+      print("🔥 Error prepareAi: $e");
+      // UI akan membaca 'status': 'error' ini
+      return {
+        'status': 'error',
+        'message': e.toString().replaceAll('Exception: ', ''),
+      };
+    }
+  }
+
+  /// 2. Menyimpan Transaksi Final (Save AI)
+  Future<bool> saveAiTransaction(
+    int tripId,
+    Map<String, dynamic> payload,
+  ) async {
+    final token = await AuthService().getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/trips/$tripId/transactions/save-ai'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
+      );
+
+      print("💾 Save AI Response [${response.statusCode}]: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        // Opsional: Print error detail buat debugging
+        print("❌ Gagal Save AI: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("🔥 Error saveAiTransaction: $e");
+      return false;
     }
   }
 }
