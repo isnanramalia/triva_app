@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Tambahkan ini untuk input formatter
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/trip_service.dart';
@@ -59,47 +60,113 @@ class _AiReviewPageState extends State<AiReviewPage> {
   }
 
   void _initializeData() {
-    final data = widget.aiResult;
-    _titleController.text = data['merchant'] ?? data['title'] ?? 'New Activity';
-    _taxController.text = (double.tryParse(data['tax']?.toString() ?? '0') ?? 0)
-        .toInt()
-        .toString();
-    _serviceController.text =
-        (double.tryParse(data['service_charge']?.toString() ?? '0') ?? 0)
-            .toInt()
-            .toString();
+    // ============================================
+    // 1. LOAD HEADER (MERCHANT, TAX, SERVICE)
+    // ============================================
 
-    final List<dynamic> rawItems = data['items'] is List ? data['items'] : [];
+    // Title / Merchant
+    if (widget.aiResult.containsKey('title')) {
+      _titleController.text = widget.aiResult['title'].toString();
+    } else if (widget.aiResult.containsKey('merchant')) {
+      _titleController.text = widget.aiResult['merchant'].toString();
+    }
+
+    // Tax
+    if (widget.aiResult.containsKey('tax')) {
+      _taxController.text = widget.aiResult['tax'].toString().replaceAll(
+        RegExp(r'[^0-9.]'),
+        '',
+      );
+    }
+
+    // Service Charge
+    if (widget.aiResult.containsKey('service_charge')) {
+      _serviceController.text = widget.aiResult['service_charge']
+          .toString()
+          .replaceAll(RegExp(r'[^0-9.]'), '');
+    }
+
+    // ============================================
+    // 2. LOAD ITEMS & HITUNG UNIT PRICE
+    // ============================================
+    final rawItems = widget.aiResult['items'] as List? ?? [];
+    final members = widget.members;
 
     for (var item in rawItems) {
-      if (item == null) continue;
+      String name = item['name'] ?? '';
 
-      String name = item['name']?.toString() ?? '';
-      int qty = (double.tryParse(item['qty']?.toString() ?? '1') ?? 1).toInt();
-      double price =
-          double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0;
+      // --- PERBAIKAN QTY (INTEGER ONLY) ---
+      // 1. Ambil sebagai double dulu (untuk handle string "1.0")
+      double rawQty = double.tryParse(item['qty'].toString()) ?? 1.0;
+      // 2. Konversi paksa ke Integer
+      int qty = rawQty.toInt();
+      if (qty == 0) qty = 1;
 
-      List<Map<String, dynamic>> parsedAssignments = [];
-      if (item['item_splits'] is List) {
-        for (var split in item['item_splits']) {
-          int memberId = int.tryParse(split['member_id'].toString()) ?? 0;
-          int splitQty = (double.tryParse(split['qty'].toString()) ?? 0)
-              .toInt();
+      // --- LOGIKA UNIT PRICE ---
+      double? explicitUnitPrice = double.tryParse(
+        item['unit_price'].toString(),
+      );
+      if (explicitUnitPrice == null) {
+        explicitUnitPrice = double.tryParse(item['price'].toString());
+      }
 
-          if (memberId != 0 && splitQty > 0) {
-            parsedAssignments.add({'member_id': memberId, 'qty': splitQty});
-          }
+      double finalUnitPrice = 0.0;
+      if (explicitUnitPrice != null) {
+        finalUnitPrice = explicitUnitPrice;
+      } else {
+        // Hitung manual: Total / Qty
+        double totalItem = double.tryParse(item['total'].toString()) ?? 0.0;
+        if (totalItem > 0) {
+          finalUnitPrice = totalItem / qty;
         }
       }
 
-      _addNewItem(
-        name: name,
-        qty: qty,
-        price: price,
-        initialAssignments: parsedAssignments,
-        shouldScroll: false,
-      );
+      // ============================================
+      // 3. LOAD ASSIGNMENTS (SPLIT MEMBERS)
+      // ============================================
+      List<Map<String, dynamic>> matchedAssignments = [];
+      var splitDataRaw = item['item_splits'] ?? item['assigned_to'];
+      List<dynamic> rawSplits = (splitDataRaw is List) ? splitDataRaw : [];
+
+      for (var split in rawSplits) {
+        String nameToSearch = "";
+        int splitQty = 1;
+
+        if (split is String) {
+          nameToSearch = split;
+        } else if (split is Map) {
+          nameToSearch = split['name'] ?? split['member_name'] ?? "";
+          splitQty = int.tryParse(split['qty'].toString()) ?? 1;
+        }
+
+        var foundMember = members.firstWhere(
+          (m) => m['name'].toString().toLowerCase().contains(
+            nameToSearch.toLowerCase(),
+          ),
+          orElse: () => null,
+        );
+
+        if (foundMember != null) {
+          matchedAssignments.add({
+            'member_id': foundMember['id'],
+            'qty': splitQty,
+          });
+        }
+      }
+
+      // Masukkan ke State UI
+      _editableItems.add({
+        'name_controller': TextEditingController(text: name),
+        // Qty sebagai String Integer ("1")
+        'qty_controller': TextEditingController(text: qty.toString()),
+        'price_controller': TextEditingController(
+          text: finalUnitPrice.toInt().toString(),
+        ),
+        'assignments': matchedAssignments,
+      });
     }
+
+    setState(() {});
   }
 
   void _addNewItem({
@@ -116,7 +183,9 @@ class _AiReviewPageState extends State<AiReviewPage> {
         'price_controller': TextEditingController(
           text: price.toInt().toString(),
         ),
-        'assignments': initialAssignments ?? <Map<String, dynamic>>[],
+        'assignments': initialAssignments != null
+            ? List<Map<String, dynamic>>.from(initialAssignments)
+            : <Map<String, dynamic>>[],
       });
     });
 
@@ -159,8 +228,9 @@ class _AiReviewPageState extends State<AiReviewPage> {
     }
   }
 
+  // --- PERBAIKAN LOGIC SUBTOTAL (Int Qty) ---
   double get _subtotal => _editableItems.fold(0.0, (sum, item) {
-    double q = double.tryParse(item['qty_controller'].text) ?? 0.0;
+    int q = int.tryParse(item['qty_controller'].text) ?? 0; // Baca sebagai int
     double p = double.tryParse(item['price_controller'].text) ?? 0.0;
     return sum + (q * p);
   });
@@ -173,72 +243,87 @@ class _AiReviewPageState extends State<AiReviewPage> {
   Future<void> _saveTransaction() async {
     if (_isSaving) return;
 
-    // Validasi sederhana
     if (_selectedPaidByMemberId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pilih siapa yang membayar terlebih dahulu"),
-        ),
+        const SnackBar(content: Text("⚠️ Pilih siapa yang membayar (Paid By)")),
       );
       return;
     }
 
     setState(() => _isSaving = true);
 
-    // FIX: Sesuaikan struktur payload dengan kebutuhan Backend Laravel
-    final payload = {
-      'title': _titleController.text,
-      'draft_id':
-          widget.aiResult['draft_id'] ??
-          'ai_${DateTime.now().millisecondsSinceEpoch}',
-      'date': DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-      'paid_by_member_id':
-          _selectedPaidByMemberId, // WAJIB: ID Member pengeluar
-      'tax': double.tryParse(_taxController.text) ?? 0,
-      'service_charge': double.tryParse(_serviceController.text) ?? 0,
-      'items': _editableItems.map((item) {
-        final q = double.tryParse(item['qty_controller'].text) ?? 1.0;
-        final p = double.tryParse(item['price_controller'].text) ?? 0.0;
-
-        // Map assignments (splits)
-        final assignments = (item['assignments'] as List)
-            .map(
-              (a) => {
-                'member_id': a['member_id'],
-                'qty': a['qty'], // 0 = bagi rata, >0 = porsi spesifik
-              },
-            )
-            .toList();
-
-        return {
-          'name': item['name_controller'].text,
-          'qty': q,
-          'total': q * p, // WAJIB: Backend butuh total per item
-          'splits': assignments, // FIX: Gunakan key 'splits' sesuai backend
-        };
-      }).toList(),
-    };
-
     try {
+      for (int i = 0; i < _editableItems.length; i++) {
+        final item = _editableItems[i];
+        final assignments = item['assignments'] as List;
+        final name = item['name_controller'].text;
+
+        if (assignments.isEmpty) {
+          throw Exception(
+            "Item '${name.isEmpty ? 'Baris ke-${i + 1}' : name}' belum di-assign ke member mana pun!",
+          );
+        }
+      }
+
+      final payload = {
+        'title': _titleController.text,
+        'draft_id': 'force_new_${DateTime.now().millisecondsSinceEpoch}',
+        'date': DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        'paid_by_member_id': _selectedPaidByMemberId,
+        'tax': double.tryParse(_taxController.text) ?? 0,
+        'service_charge': double.tryParse(_serviceController.text) ?? 0,
+        'tax_split_mode': 'proportional',
+        'items': _editableItems.map((item) {
+          // --- PERBAIKAN SAVE (Int Qty) ---
+          final int q = int.tryParse(item['qty_controller'].text) ?? 1;
+          final double p =
+              double.tryParse(item['price_controller'].text) ?? 0.0;
+
+          final rawAssignments =
+              item['assignments'] as List<Map<String, dynamic>>;
+
+          final splits = rawAssignments.map((a) {
+            return {'member_id': a['member_id'], 'qty': a['qty']};
+          }).toList();
+
+          return {
+            'name': item['name_controller'].text,
+            'qty': q, // Kirim Int ke backend
+            'total': q * p,
+            'splits': splits,
+          };
+        }).toList(),
+      };
+
+      print("🚀 Sending Payload: ${payload['items']}");
+
       final success = await TripService().saveAiTransaction(
         widget.tripId,
         payload,
       );
+
       if (success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Transaksi berhasil disimpan! ✅")),
+            const SnackBar(
+              content: Text("Transaksi berhasil disimpan!"),
+              backgroundColor: Colors.green,
+            ),
           );
-          Navigator.pop(context, true); // Kembali ke Trip Detail & refresh
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception("Gagal menyimpan ke server");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -264,18 +349,32 @@ class _AiReviewPageState extends State<AiReviewPage> {
           const Text("Paid By:", style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(width: 12),
           Expanded(
-            child: DropdownButton<int>(
-              value: _selectedPaidByMemberId,
-              isExpanded: true,
-              underline: const SizedBox(),
-              items: widget.members.map((m) {
-                final name = m['user']?['name'] ?? m['guest_name'] ?? 'Member';
-                return DropdownMenuItem<int>(
-                  value: m['id'],
-                  child: Text(name, overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
-              onChanged: (val) => setState(() => _selectedPaidByMemberId = val),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: _selectedPaidByMemberId,
+                isExpanded: true,
+                hint: const Text("Pilih Pembayar"),
+                items: widget.members.map((m) {
+                  final String name =
+                      m['user']?['name'] ??
+                      m['name'] ??
+                      m['guest_name'] ??
+                      'Unknown Member';
+                  final int memberId = int.tryParse(m['id'].toString()) ?? 0;
+
+                  return DropdownMenuItem<int>(
+                    value: memberId,
+                    child: Text(
+                      name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() => _selectedPaidByMemberId = val);
+                },
+              ),
             ),
           ),
         ],
@@ -291,7 +390,6 @@ class _AiReviewPageState extends State<AiReviewPage> {
     return InputDecoration(
       hintText: hintText,
       prefixIcon: prefixIcon,
-      // TAMBAHAN PENTING: Agar icon tidak maksa ukuran 48px (jadi bisa centering)
       prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
       isDense: true,
       contentPadding:
@@ -340,15 +438,11 @@ class _AiReviewPageState extends State<AiReviewPage> {
           Expanded(
             child: ListView(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ), // Padding vertical dikurangi
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               children: [
                 _buildHeaderSection(),
-                const SizedBox(height: 24), // Jarak antar section dikurangi
+                const SizedBox(height: 24),
                 _buildPaidBySelector(),
-                // Section Header Items
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -391,8 +485,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12), // Jarak ke list items dikurangi
-
+                const SizedBox(height: 12),
                 ..._editableItems.asMap().entries.map(
                   (e) => _buildItemCard(e.key, e.value),
                 ),
@@ -411,13 +504,13 @@ class _AiReviewPageState extends State<AiReviewPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildLabel("Merchant / Title"),
-        const SizedBox(height: 4), // Jarak dikurangi
+        const SizedBox(height: 4),
         TextField(
           controller: _titleController,
           style: const TextStyle(fontSize: 14),
           decoration: _getInputDecoration(hintText: "E.g. Dinner at Beach"),
         ),
-        const SizedBox(height: 12), // Jarak antar row dikurangi
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -440,7 +533,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
                             fontWeight: FontWeight.bold,
                             color: Colors.black54,
                           ),
-                        ), // Height disesuaikan karena isDense
+                        ),
                       ),
                     ),
                   ),
@@ -482,6 +575,8 @@ class _AiReviewPageState extends State<AiReviewPage> {
   }
 
   Widget _buildItemCard(int index, Map<String, dynamic> item) {
+    // --- PERBAIKAN DISPLAY QTY ---
+    // Pakai int.tryParse supaya hitungan di UI visual benar
     int itemTotalQty = int.tryParse(item['qty_controller'].text) ?? 0;
     double itemPrice = double.tryParse(item['price_controller'].text) ?? 0.0;
 
@@ -492,8 +587,8 @@ class _AiReviewPageState extends State<AiReviewPage> {
     );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12), // Margin bawah diperkecil
-      padding: const EdgeInsets.all(12), // Padding dalam diperkecil
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_borderRadius),
@@ -509,7 +604,6 @@ class _AiReviewPageState extends State<AiReviewPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Item & Delete
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -520,18 +614,17 @@ class _AiReviewPageState extends State<AiReviewPage> {
               ),
             ],
           ),
-          const SizedBox(height: 4), // Jarak dikurangi
+          const SizedBox(height: 4),
           TextField(
             controller: item['name_controller'],
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             decoration: _getInputDecoration(hintText: "Item name..."),
           ),
-          const SizedBox(height: 10), // Jarak ke Qty/Price dikurangi
-          // Qty & Price Row
+          const SizedBox(height: 10),
           Row(
             children: [
               SizedBox(
-                width: 70, // Lebar diperkecil sedikit
+                width: 70,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -539,7 +632,12 @@ class _AiReviewPageState extends State<AiReviewPage> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: item['qty_controller'],
-                      keyboardType: TextInputType.number,
+                      // --- PERBAIKAN INPUT QTY ---
+                      // Hanya boleh angka, tidak boleh desimal
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                      ),
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       textAlign: TextAlign.center,
                       onChanged: (_) => setState(() {}),
                       style: const TextStyle(fontSize: 14),
@@ -580,14 +678,9 @@ class _AiReviewPageState extends State<AiReviewPage> {
               ),
             ],
           ),
-
-          const SizedBox(height: 10), // Jarak ke Subtotal dikurangi
-          // Subtotal Read-only
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ), // Padding compact
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FB),
               borderRadius: BorderRadius.circular(8),
@@ -610,12 +703,9 @@ class _AiReviewPageState extends State<AiReviewPage> {
               ],
             ),
           ),
-
           const SizedBox(height: 10),
-          const Divider(height: 1, thickness: 0.5), // Divider lebih tipis
+          const Divider(height: 1, thickness: 0.5),
           const SizedBox(height: 10),
-
-          // --- Assign Members Section ---
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -650,8 +740,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 6), // Jarak dikurangi
-          // List Rows Member
+          const SizedBox(height: 6),
           if (assignments.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 4.0),
@@ -664,21 +753,17 @@ class _AiReviewPageState extends State<AiReviewPage> {
                 ),
               ),
             ),
-
           ...assignments.asMap().entries.map((entry) {
             final assignData = entry.value;
             final assignIndex = entry.key;
 
             return Padding(
-              padding: const EdgeInsets.only(
-                bottom: 6,
-              ), // Jarak antar row member dikurangi
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  // Dropdown Member
                   Expanded(
                     child: Container(
-                      height: 36, // Height diperkecil (Compact)
+                      height: 36,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -693,7 +778,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.black,
-                          ), // Font diperkecil
+                          ),
                           items: widget.members.map<DropdownMenuItem<int>>((m) {
                             return DropdownMenuItem<int>(
                               value: m['id'],
@@ -712,10 +797,8 @@ class _AiReviewPageState extends State<AiReviewPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // Stepper Qty
                   Container(
-                    height: 36, // Height diperkecil
+                    height: 36,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border.all(color: Colors.grey.shade300),
@@ -726,7 +809,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.remove, size: 12),
-                          padding: EdgeInsets.zero, // Remove internal padding
+                          padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 28),
                           onPressed: () {
                             if (assignData['qty'] > 1)
@@ -750,8 +833,6 @@ class _AiReviewPageState extends State<AiReviewPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // Delete Row
                   InkWell(
                     onTap: () =>
                         setState(() => assignments.removeAt(assignIndex)),
@@ -768,10 +849,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
               ),
             );
           }),
-
           const SizedBox(height: 4),
-
-          // Button Add Assignment
           InkWell(
             onTap: () => _addAssignmentRow(index),
             child: Container(
@@ -814,12 +892,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
 
   Widget _buildBottomSummary() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        24,
-      ), // Padding bawah compact
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -858,7 +931,7 @@ class _AiReviewPageState extends State<AiReviewPage> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 48, // Tinggi tombol sedikit dikurangi dari 52
+            height: 48,
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveTransaction,
               style: ElevatedButton.styleFrom(

@@ -3,13 +3,13 @@ import '../../../core/theme/app_colors.dart';
 import 'add_activity/manual_add_tab.dart';
 import 'add_activity/ai_add_tab.dart';
 
-void navigateToAddActivityPage(
+Future<void> navigateToAddActivityPage(
   BuildContext context, {
   required int tripId,
   required List<Map<String, dynamic>> members,
   required Function(Map<String, dynamic>) onActivityAdded,
-}) {
-  Navigator.push(
+}) async {
+  await Navigator.push(
     context,
     MaterialPageRoute(
       fullscreenDialog: true,

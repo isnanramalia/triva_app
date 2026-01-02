@@ -195,6 +195,7 @@ class AiAddTabState extends State<AiAddTab> {
   }
 
   // --- PUBLIC SUBMIT ---
+  // --- PUBLIC SUBMIT ---
   Future<void> submit() async {
     if (_selectedImage == null && _queryController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -216,10 +217,13 @@ class AiAddTabState extends State<AiAddTab> {
         query: _queryController.text,
       );
 
-      if (mounted) Navigator.pop(context); // Tutup Dialog
+      if (mounted) Navigator.pop(context); // Tutup Dialog Loading
 
       if (mounted && response['status'] == 'success') {
-        Navigator.push(
+        // --- PERBAIKAN NAVIGASI DI SINI ---
+
+        // 1. Gunakan 'await' untuk menunggu hasil dari AiReviewPage
+        final bool? isSaved = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => AiReviewPage(
@@ -229,6 +233,12 @@ class AiAddTabState extends State<AiAddTab> {
             ),
           ),
         );
+
+        // 2. Jika isSaved == true (artinya user menekan Confirm & Save)
+        if (isSaved == true && mounted) {
+          // 3. Tutup halaman AddActivityPage ini agar kembali ke TripDetail
+          Navigator.pop(context, true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -240,7 +250,7 @@ class AiAddTabState extends State<AiAddTab> {
         );
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); // Tutup dialog jika error
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));

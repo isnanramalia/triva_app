@@ -905,28 +905,31 @@ class _TripDetailPageState extends State<TripDetailPage>
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: () {
-                  // ✅ PERBAIKAN: Kirim ID dan Name
+                onPressed: () async {
+                  // Tambahkan async
                   final List<Map<String, dynamic>> memberForActivity = _members
                       .map((m) {
                         final memberId = m['id'];
-
                         final name = m['user'] != null
                             ? m['user']['name']
                             : m['guest_name'];
-
                         return {'id': memberId, 'name': name.toString()};
                       })
                       .toList();
 
-                  navigateToAddActivityPage(
+                  // Tambahkan await di sini untuk menunggu AddActivityPage tertutup
+                  await navigateToAddActivityPage(
                     context,
                     tripId: widget.tripId,
                     members: memberForActivity,
                     onActivityAdded: (activityData) {
-                      _fetchTripData(); // Refresh setelah sukses
+                      // Callback ini mungkin tidak terpanggil jika kita pakai pop(true)
+                      // Jadi kita andalkan _fetchTripData() di bawah
                     },
                   );
+
+                  // Refresh data setiap kali kembali dari halaman Add Activity
+                  _fetchTripData(showLoading: false);
                 },
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text("Add Activity"),
